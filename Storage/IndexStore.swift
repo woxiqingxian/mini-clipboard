@@ -18,7 +18,7 @@ public final class IndexStore: IndexStoreProtocol {
         var boardItems: [UUID: [UUID]]
     }
     public init() {
-        let appDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("Paste")
+        let appDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("MiniClipboard")
         try? FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
         self.contentDir = appDir.appendingPathComponent("Store")
         try? FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)

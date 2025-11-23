@@ -219,6 +219,8 @@ struct PanelRootView: View {
                 )
                 VStack(spacing: 0) {
                     HistoryTimelineView(items: controller.items, boards: controller.boards, defaultBoardID: controller.store.defaultBoardID, onPaste: { item, plain in controller.pasteItem(item, plain: plain) }, onAddToBoard: { item, bid in controller.addToBoard(item, bid) }, onDelete: { item in controller.deleteItem(item) }, selectedItemID: controller.selectedItemID, onSelect: { item in controller.selectItem(item) }, onRename: { item, name in controller.renameItem(item, name: name) })
+                        .animation(.easeInOut(duration: 0.35), value: controller.items)
+                        .animation(.easeInOut(duration: 0.35), value: layoutStyleRaw)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

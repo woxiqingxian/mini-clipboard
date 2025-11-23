@@ -7,7 +7,7 @@ public final class SettingsStore: SettingsStoreProtocol {
     private let encoder = JSONEncoder()
     public init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let app = dir.appendingPathComponent("Paste")
+        let app = dir.appendingPathComponent("MiniClipboard")
         try? FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
         url = app.appendingPathComponent("settings.json")
     }
