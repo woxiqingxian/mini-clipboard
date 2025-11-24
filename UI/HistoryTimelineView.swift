@@ -26,32 +26,44 @@ public struct HistoryTimelineView: View {
         self.onSelect = onSelect
         self.onRename = onRename
     }
+    @State private var displayedCount: Int = 60
+    private var displayedItems: [ClipItem] { Array(items.prefix(displayedCount)) }
     public var body: some View {
         Group {
             if layoutStyle == .horizontal {
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 12) {
-                        ForEach(items) { item in
+                        ForEach(displayedItems) { item in
                             ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
                                 .equatable()
                         }
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 1, height: 1)
+                            .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                 }
                 .frame(maxWidth: .infinity)
+                .onChange(of: items.count) { c in displayedCount = min(c, 60) }
             } else {
                 ScrollView {
                     LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
-                        ForEach(items) { item in
+                        ForEach(displayedItems) { item in
                             ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
                                 .equatable()
                         }
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(height: 1)
+                            .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 12)
                 }
                 .frame(maxWidth: .infinity)
+                .onChange(of: items.count) { c in displayedCount = min(c, 60) }
             }
         }
     }
@@ -80,6 +92,9 @@ private struct ItemCardView: View, Equatable {
     @State private var hoverPlain = false
     @State private var hoverDelete = false
     @State private var hoverMenu = false
+    @State private var rtfPreview: NSAttributedString?
+    @State private var isLoadingRTF = false
+    private static var rtfCache: [UUID: NSAttributedString] = [:]
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(spacing: 0) {
@@ -137,23 +152,9 @@ private struct ItemCardView: View, Equatable {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .background(
-                        GeometryReader { g in
-                            Color.clear.preference(key: SizePreferenceKey.self, value: g.size)
-                        }
-                    )
                 }
                 .padding(12)
-                .onPreferenceChange(SizePreferenceKey.self) { s in
-                    metaHeight = s.height
-                }
-                .background(
-                    GeometryReader { g in
-                        Color.clear
-                            .onAppear { contentHeight = g.size.height }
-                            .onChange(of: g.size) { contentHeight = $0.height }
-                    }
-                )
+                
                 if isSelected {
                     VStack(spacing: 0) {
                         Divider()
@@ -260,13 +261,31 @@ private struct ItemCardView: View, Equatable {
             .simultaneousGesture(TapGesture(count: 1).onEnded { onSelect(item) })
         }
     }
+    private func loadRTFIfNeeded() {
+        guard selected, let u = item.contentRef else { return }
+        let ext = u.pathExtension.lowercased()
+        let isRich = item.metadata["rich"] == "rtf" || ext == "rtf" || ext == "html"
+        if !isRich { return }
+        if let cached = ItemCardView.rtfCache[item.id] { rtfPreview = cached; return }
+        if isLoadingRTF { return }
+        isLoadingRTF = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let a = loadAttributedString(u)
+            DispatchQueue.main.async {
+                if let a { ItemCardView.rtfCache[item.id] = a; rtfPreview = a }
+                isLoadingRTF = false
+            }
+        }
+    }
+    private func loadPlainString(_ url: URL) -> String? {
+        if let d = try? Data(contentsOf: url), let s = String(data: d, encoding: .utf8) { return s }
+        return try? String(contentsOf: url)
+    }
     @ViewBuilder private var contentPreview: some View {
         switch item.type {
         case .image:
             if let u = item.contentRef {
-                let available = max(60, (contentHeight > 0 ? (contentHeight - metaHeight - 8) : 120))
-                let cap = isSelected ? 86 : 120
-                let h = min(available, CGFloat(cap))
+                let h = CGFloat(isSelected ? 86 : 120)
                 AsyncImage(url: u) { phase in
                     switch phase {
                     case .empty:
@@ -284,7 +303,7 @@ private struct ItemCardView: View, Equatable {
                     case .failure:
                         Text(mainTitle)
                             .font(.system(size: 13))
-                            .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
+                            .lineLimit(10)
                     @unknown default:
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.secondary.opacity(0.12))
@@ -295,24 +314,22 @@ private struct ItemCardView: View, Equatable {
             } else {
                 Text(mainTitle)
                     .font(.system(size: 13))
-                    .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
+                    .lineLimit(10)
             }
         case .link:
             if let u = item.contentRef {
                 Link(destination: u) {
                     Text(u.absoluteString)
                         .font(.system(size: 13))
-                        .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
+                        .lineLimit(10)
                 }
             } else {
                 Text(mainTitle)
                     .font(.system(size: 13))
-                    .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
+                    .lineLimit(10)
             }
         case .color:
-            let available = max(60, (contentHeight > 0 ? (contentHeight - metaHeight - 8) : 120))
-            let cap = isSelected ? 86 : 120
-            let h = min(available, CGFloat(cap))
+            let h = CGFloat(isSelected ? 86 : 120)
             let hex = item.metadata["colorHex"]
             let c: Color = {
                 if let s = hex, !s.isEmpty { return colorFromString(s) }
@@ -334,25 +351,44 @@ private struct ItemCardView: View, Equatable {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
         case .text:
-            let available = max(60, (contentHeight > 0 ? (contentHeight - metaHeight - 8) : 120))
-            let cap = isSelected ? 86 : 120
-            let h = min(available, CGFloat(cap))
-            let longLimit = 4000
+            let h = CGFloat(isSelected ? 86 : 120)
             let maxRTFChars = 2000
             let previewPlain = (item.text ?? mainTitle)
-            let isLong = previewPlain.count > longLimit
-            if isSelected, !isLong, let u = item.contentRef, let a = loadAttributedString(u) {
-                let sub = a.attributedSubstring(from: NSRange(location: 0, length: min(maxRTFChars, a.length)))
-                Text(AttributedString(sub))
-                    .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: h, alignment: .topLeading)
+            if isSelected {
+                Group {
+                    if let p = rtfPreview {
+                        let sub = p.attributedSubstring(from: NSRange(location: 0, length: min(maxRTFChars, p.length)))
+                        Text(AttributedString(sub))
+                            .lineLimit(10)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(height: h, alignment: .topLeading)
+                    } else {
+                        if let u = item.contentRef, let full = loadPlainString(u) {
+                            let truncated = truncatedPreview(full)
+                            Text(truncated)
+                                .font(.system(size: 13))
+                                .lineLimit(10)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .frame(height: h, alignment: .topLeading)
+                        } else {
+                            let truncated = truncatedPreview(previewPlain)
+                            Text(truncated)
+                                .font(.system(size: 13))
+                                .lineLimit(10)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .frame(height: h, alignment: .topLeading)
+                        }
+                    }
+                }
+                .onAppear { loadRTFIfNeeded() }
+                .onChange(of: selected) { s in if s { loadRTFIfNeeded() } }
             } else {
-                let truncated = String(previewPlain.prefix(longLimit))
+                let truncated = truncatedPreview(previewPlain)
                 Text(truncated)
-                    .font(.system(size: 13))
-                    .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
+                    .lineLimit(10)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: h, alignment: .topLeading)
@@ -360,19 +396,21 @@ private struct ItemCardView: View, Equatable {
         default:
             Text(mainTitle)
                 .font(.system(size: 13))
-                .lineLimit(max(1, Int(floor((contentHeight - metaHeight - 8) / textLineHeight))))
+                .lineLimit(10)
         }
     }
     private var textLineHeight: CGFloat {
         let f = NSFont.systemFont(ofSize: 14)
         return f.ascender - f.descender + f.leading
     }
-    private struct SizePreferenceKey: PreferenceKey {
-        static var defaultValue: CGSize = .zero
-        static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+    private func truncatedPreview(_ s: String) -> String {
+        let maxChars = 1200
+        let lines = s.split(separator: "\n", omittingEmptySubsequences: false)
+        let firstLines = lines.prefix(10)
+        var joined = firstLines.joined(separator: "\n")
+        if joined.count > maxChars { joined = String(joined.prefix(maxChars)) }
+        return String(joined)
     }
-    @State private var metaHeight: CGFloat = 0
-    @State private var contentHeight: CGFloat = 0
     private var mainTitle: String { item.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? item.text! : (item.contentRef?.lastPathComponent ?? "Item") }
     private var typeIcon: String {
         switch item.type {
@@ -400,8 +438,9 @@ private struct ItemCardView: View, Equatable {
         case .color: return [Color.purple, Color.cyan]
         }
     }
+    private static var avgColorCache: [String: NSColor] = [:]
     private var headerColor: Color {
-        if let img = appIcon, let c = averageColor(img) {
+        if let img = appIcon, let c = averageColorCached(for: img, key: bundleID) {
             var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
             c.usingColorSpace(.deviceRGB)?.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
             let sAdj = min(max(s, 0.35), 0.55)
@@ -418,7 +457,7 @@ private struct ItemCardView: View, Equatable {
         }
     }
     private var headerGradient: LinearGradient {
-        if let img = appIcon, let c = averageColor(img) {
+        if let img = appIcon, let c = averageColorCached(for: img, key: bundleID) {
             var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
             c.usingColorSpace(.deviceRGB)?.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
             let sAdj = min(max(s, 0.55), 0.85)
@@ -436,9 +475,20 @@ private struct ItemCardView: View, Equatable {
     }
     private var characterCount: Int { (item.text ?? mainTitle).count }
     private var bundleID: String? { item.metadata["bundleID"] ?? NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == item.sourceApp })?.bundleIdentifier }
+    private static var iconCache: [String: NSImage] = [:]
     private var appIcon: NSImage? {
-        guard let bid = bundleID, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) else { return nil }
-        return NSWorkspace.shared.icon(forFile: url.path)
+        guard let bid = bundleID else { return nil }
+        if let cached = ItemCardView.iconCache[bid] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        ItemCardView.iconCache[bid] = icon
+        return icon
+    }
+    private func averageColorCached(for image: NSImage, key: String?) -> NSColor? {
+        if let k = key, let cached = ItemCardView.avgColorCache[k] { return cached }
+        let c = averageColor(image)
+        if let k = key, let c { ItemCardView.avgColorCache[k] = c }
+        return c
     }
     private func boardColor(_ b: Pinboard) -> Color {
         guard let s = b.color?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !s.isEmpty else { return .accentColor }

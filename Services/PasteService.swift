@@ -29,12 +29,45 @@ public final class PasteService: PasteServiceProtocol {
         let pb = NSPasteboard.general
         pb.clearContents()
         if plainText {
-            pb.setString(item.text ?? "", forType: .string)
+            if item.type == .text {
+                if let u = item.contentRef {
+                    if item.metadata["rich"] == "rtf" {
+                        if let a = try? NSAttributedString(url: u, options: [:], documentAttributes: nil) {
+                            pb.setString(a.string, forType: .string)
+                        } else if let s = try? String(contentsOf: u) {
+                            pb.setString(s, forType: .string)
+                        } else {
+                            pb.setString(item.text ?? "", forType: .string)
+                        }
+                    } else if let s = try? String(contentsOf: u) {
+                        pb.setString(s, forType: .string)
+                    } else {
+                        pb.setString(item.text ?? "", forType: .string)
+                    }
+                } else {
+                    pb.setString(item.text ?? "", forType: .string)
+                }
+            } else {
+                pb.setString(item.text ?? "", forType: .string)
+            }
             return
         }
         switch item.type {
         case .text:
-            pb.setString(item.text ?? "", forType: .string)
+            if let u = item.contentRef {
+                if item.metadata["rich"] == "rtf" {
+                    if let d = try? Data(contentsOf: u) { pb.setData(d, forType: .rtf) }
+                    else if let a = try? NSAttributedString(url: u, options: [:], documentAttributes: nil) { pb.setString(a.string, forType: .string) }
+                    else if let s = try? String(contentsOf: u) { pb.setString(s, forType: .string) }
+                    else { pb.setString(item.text ?? "", forType: .string) }
+                } else if let s = try? String(contentsOf: u) {
+                    pb.setString(s, forType: .string)
+                } else {
+                    pb.setString(item.text ?? "", forType: .string)
+                }
+            } else {
+                pb.setString(item.text ?? "", forType: .string)
+            }
         case .link:
             if let u = item.contentRef { pb.setString(u.absoluteString, forType: .URL) }
         case .image:

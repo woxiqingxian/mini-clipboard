@@ -136,11 +136,21 @@ public final class ClipboardMonitor: ClipboardMonitorProtocol {
                 DispatchQueue.main.async { self.onItemCaptured?(item) }
                 return
             }
+            let threshold = 4000
             var m: [String: String] = [:]
             if let bid = bundleID { m["bundleID"] = bid }
-            let item = ClipItem(type: .text, contentRef: nil, text: raw, sourceApp: appName, metadata: m)
-            DispatchQueue.main.async { self.onItemCaptured?(item) }
-            return
+            if text.count > threshold {
+                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("txt")
+                try? raw.write(to: tmp, atomically: true, encoding: .utf8)
+                let preview = String(text.prefix(1200))
+                let item = ClipItem(type: .text, contentRef: tmp, text: preview, sourceApp: appName, metadata: m)
+                DispatchQueue.main.async { self.onItemCaptured?(item) }
+                return
+            } else {
+                let item = ClipItem(type: .text, contentRef: nil, text: raw, sourceApp: appName, metadata: m)
+                DispatchQueue.main.async { self.onItemCaptured?(item) }
+                return
+            }
         }
     }
     private func detectURL(fromString s: String) -> URL? {

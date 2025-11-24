@@ -58,14 +58,21 @@ public final class IndexStore: IndexStoreProtocol {
             if !filters.sourceApps.isEmpty { r = r.filter { filters.sourceApps.contains($0.sourceApp) } }
             if let q = query, !q.isEmpty {
                 let qs = q.lowercased()
-                // 文本与 URL 模糊匹配
-                r = r.filter { ($0.text?.lowercased().contains(qs) ?? false) || ($0.metadata["url"]?.lowercased().contains(qs) ?? false) }
+                r = r.filter { itemMatches($0, qs: qs) }
             }
             let s = offset
             let e = min(r.count, s + max(0, limit))
             if s >= e { return [] }
             return Array(r[s..<e])
         }
+    }
+    private func itemMatches(_ item: ClipItem, qs: String) -> Bool {
+        if (item.text?.lowercased().contains(qs) ?? false) { return true }
+        if (item.metadata["url"]?.lowercased().contains(qs) ?? false) { return true }
+        if item.type == .text, let u = item.contentRef, let s = try? String(contentsOf: u) {
+            return s.lowercased().contains(qs)
+        }
+        return false
     }
     public func pin(_ id: UUID, to boardID: UUID) throws {
         queue.sync {
