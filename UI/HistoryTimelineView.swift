@@ -9,6 +9,7 @@ public struct HistoryTimelineView: View {
     public let items: [ClipItem]
     public let boards: [Pinboard]
     public let defaultBoardID: UUID
+    public let currentBoardID: UUID?
     public let onPaste: (ClipItem, Bool) -> Void
     public let onAddToBoard: (ClipItem, UUID) -> Void
     public let onDelete: (ClipItem) -> Void
@@ -16,10 +17,11 @@ public struct HistoryTimelineView: View {
     public let onSelect: (ClipItem) -> Void
     public let onRename: (ClipItem, String) -> Void
     @AppStorage("historyLayoutStyle") private var layoutStyleRaw: String = "horizontal"
-    public init(items: [ClipItem], boards: [Pinboard], defaultBoardID: UUID, onPaste: @escaping (ClipItem, Bool) -> Void, onAddToBoard: @escaping (ClipItem, UUID) -> Void, onDelete: @escaping (ClipItem) -> Void, selectedItemID: UUID?, onSelect: @escaping (ClipItem) -> Void, onRename: @escaping (ClipItem, String) -> Void) {
+    public init(items: [ClipItem], boards: [Pinboard], defaultBoardID: UUID, currentBoardID: UUID?, onPaste: @escaping (ClipItem, Bool) -> Void, onAddToBoard: @escaping (ClipItem, UUID) -> Void, onDelete: @escaping (ClipItem) -> Void, selectedItemID: UUID?, onSelect: @escaping (ClipItem) -> Void, onRename: @escaping (ClipItem, String) -> Void) {
         self.items = items
         self.boards = boards
         self.defaultBoardID = defaultBoardID
+        self.currentBoardID = currentBoardID
         self.onPaste = onPaste
         self.onAddToBoard = onAddToBoard
         self.onDelete = onDelete
@@ -35,7 +37,7 @@ public struct HistoryTimelineView: View {
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 12) {
                         ForEach(displayedItems) { item in
-                            ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
+                            ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
                                 .equatable()
                         }
                         Rectangle()
@@ -52,7 +54,7 @@ public struct HistoryTimelineView: View {
                 ScrollView {
                     LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
                         ForEach(displayedItems) { item in
-                            ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
+                            ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
                                 .equatable()
                         }
                         Rectangle()
@@ -78,6 +80,7 @@ private struct ItemCardView: View, Equatable {
     let item: ClipItem
     let boards: [Pinboard]
     let defaultBoardID: UUID
+    let currentBoardID: UUID?
     let onPaste: (ClipItem, Bool) -> Void
     let onAddToBoard: (ClipItem, UUID) -> Void
     let onDelete: (ClipItem) -> Void
@@ -117,7 +120,7 @@ private struct ItemCardView: View, Equatable {
                 .frame(height: 36)
                 .popover(isPresented: $showNamePopover) {
                     VStack(alignment: .leading, spacing: 8) {
-                        TextField("名称", text: $nameInput)
+                        TextField(L("timeline.rename.namePlaceholder"), text: $nameInput)
                             .textFieldStyle(.roundedBorder)
                             .focused($nameFocused)
                             .onSubmit {
@@ -127,12 +130,12 @@ private struct ItemCardView: View, Equatable {
                             }
                         HStack {
                             Spacer()
-                            Button("保存") {
+                            Button(L("timeline.rename.save")) {
                                 let n = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
                                 if !n.isEmpty { onRename(item, n) }
                                 showNamePopover = false
                             }
-                            Button("取消") { showNamePopover = false }
+                            Button(L("timeline.rename.cancel")) { showNamePopover = false }
                         }
                     }
                     .padding(12)
@@ -142,7 +145,7 @@ private struct ItemCardView: View, Equatable {
                     contentPreview
                     Spacer()
                     HStack {
-                        Text("\(characterCount) characters")
+                        Text("\(characterCount) " + L("timeline.count.chars"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -169,7 +172,7 @@ private struct ItemCardView: View, Equatable {
                                 hoverPaste = h
                                 if h { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
                             }
-                            .help("复制到剪贴板")
+                            .help(L("timeline.help.copy"))
 
                             Button { onPaste(item, true) } label: {
                                 Image(systemName: "textformat")
@@ -183,7 +186,7 @@ private struct ItemCardView: View, Equatable {
                                 hoverPlain = h
                                 if h { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
                             }
-                            .help("以纯文本复制")
+                            .help(L("timeline.help.pastePlain"))
 
                             Button { onDelete(item) } label: {
                                 Image(systemName: "trash")
@@ -197,7 +200,7 @@ private struct ItemCardView: View, Equatable {
                                 hoverDelete = h
                                 if h { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
                             }
-                            .help("删除")
+                            .help(L("timeline.help.delete"))
 
                             Menu {
                                 ForEach(boards.filter { $0.id != defaultBoardID }) { b in
@@ -223,14 +226,15 @@ private struct ItemCardView: View, Equatable {
                                 hoverMenu = h
                                 if h { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
                             }
-                            .help("添加至分组")
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .help(L("timeline.help.addToBoard"))
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
             }
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+    
             .frame(width: cardWidth, height: 220)
             .background(
                 RoundedRectangle(cornerRadius: 14)
@@ -553,7 +557,7 @@ private struct ItemCardView: View, Equatable {
     private var shadowColor: Color { Color.black.opacity(0.15) }
     private var isSelected: Bool { selected }
     static func == (lhs: ItemCardView, rhs: ItemCardView) -> Bool {
-        lhs.item.id == rhs.item.id && lhs.selected == rhs.selected && lhs.cardWidth == rhs.cardWidth
+        lhs.item == rhs.item && lhs.selected == rhs.selected && lhs.cardWidth == rhs.cardWidth
     }
     private var gradientColors: [Color] {
         switch item.type {
@@ -566,6 +570,7 @@ private struct ItemCardView: View, Equatable {
     }
     private static var avgColorCache: [String: NSColor] = [:]
     private var headerColor: Color {
+        if let c = boardHeaderColor { return c }
         if let img = appIcon, let c = averageColorCached(for: img, key: bundleID) {
             var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
             c.usingColorSpace(.deviceRGB)?.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
@@ -583,6 +588,9 @@ private struct ItemCardView: View, Equatable {
         }
     }
     private var headerGradient: LinearGradient {
+        if let bc = boardHeaderColor {
+            return LinearGradient(colors: [bc, bc.opacity(0.9)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
         if let img = appIcon, let c = averageColorCached(for: img, key: bundleID) {
             var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
             c.usingColorSpace(.deviceRGB)?.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
@@ -594,8 +602,16 @@ private struct ItemCardView: View, Equatable {
         }
         return LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
+    private var boardHeaderColor: Color? {
+        guard let id = currentBoardID, id != defaultBoardID else { return nil }
+        if let b = boards.first(where: { $0.id == id }) { return boardColor(b) }
+        return nil
+    }
     private var relativeTime: String {
         let f = RelativeDateTimeFormatter()
+        let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "zh-Hans"
+        let code = (lang == "en") ? "en" : "zh_CN"
+        f.locale = Locale(identifier: code)
         f.unitsStyle = .full
         return f.localizedString(for: item.copiedAt, relativeTo: Date())
     }

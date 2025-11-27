@@ -37,26 +37,26 @@ struct PanelRootView: View {
                     .buttonStyle(.borderless)
                     .popover(isPresented: $showNewBoardPopover) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("新增收藏分组").font(.system(size: 13, weight: .medium))
-                            TextField("名称", text: $newBoardName)
+                            Text(L("panel.newBoard.title")).font(.system(size: 13, weight: .medium))
+                            TextField(L("panel.name.placeholder"), text: $newBoardName)
                                 .textFieldStyle(.roundedBorder)
                                 .onSubmit {
                                     let name = newBoardName.trimmingCharacters(in: .whitespacesAndNewlines)
                                     let presetColors = ["red","orange","yellow","green","blue","indigo","purple","pink"]
                                     let randomColor = presetColors.randomElement()
-                                    _ = controller.store.createPinboard(name: name.isEmpty ? "新分组" : name, color: randomColor)
+                                    _ = controller.store.createPinboard(name: name.isEmpty ? L("panel.newBoard.title") : name, color: randomColor)
                                     controller.refresh()
                                     showNewBoardPopover = false
                                     newBoardName = ""
                                 }
                             HStack {
                                 Spacer()
-                                Button("取消") { showNewBoardPopover = false; newBoardName = "" }
-                                Button("添加") {
+                                Button(L("panel.cancel")) { showNewBoardPopover = false; newBoardName = "" }
+                                Button(L("panel.add")) {
                                     let name = newBoardName.trimmingCharacters(in: .whitespacesAndNewlines)
                                     let presetColors = ["red","orange","yellow","green","blue","indigo","purple","pink"]
                                     let randomColor = presetColors.randomElement()
-                                    _ = controller.store.createPinboard(name: name.isEmpty ? "新分组" : name, color: randomColor)
+                                    _ = controller.store.createPinboard(name: name.isEmpty ? L("panel.newBoard.title") : name, color: randomColor)
                                     controller.refresh()
                                     showNewBoardPopover = false
                                     newBoardName = ""
@@ -82,7 +82,7 @@ struct PanelRootView: View {
                     .popover(isPresented: $controller.searchPopoverVisible, attachmentAnchor: .rect(.bounds), arrowEdge: .leading) {
                         HStack(spacing: 8) {
                             // Image(systemName: "magnifyingglass")
-                            TextField("搜索", text: $controller.query)
+                            TextField(L("panel.search.placeholder"), text: $controller.query)
                                 .textFieldStyle(.plain)
                                 .focused($searchPopoverFocused)
                                 .onSubmit { }
@@ -119,7 +119,7 @@ struct PanelRootView: View {
                                 Circle()
                                     .fill(boardColor(b))
                                     .frame(width: 10, height: 10)
-                                Text(b.name)
+                                Text(boardDisplayName(b))
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(.primary)
                             }
@@ -130,20 +130,20 @@ struct PanelRootView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .contextMenu {
                                 if b.id == controller.store.defaultBoardID {
-                                    Text("默认分组不可更改")
+                                    Text(L("panel.defaultBoard.uneditable"))
                                 } else {
-                                    Button("编辑名称…") {
+                                    Button(L("panel.editName")) {
                                         editingBoard = b
                                         renameInput = b.name
                                         showRenamePopover = true
                                     }
-                                    Button("修改颜色…") {
+                                    Button(L("panel.changeColor")) {
                                         editingBoard = b
                                         colorInput = b.color ?? ""
                                         showColorPopover = true
                                     }
                                     Divider()
-                                    Button("删除分组") {
+                                    Button(L("panel.deleteBoard")) {
                                         try? controller.store.deletePinboard(b.id)
                                         controller.refresh()
                                     }
@@ -152,21 +152,21 @@ struct PanelRootView: View {
                             .onTapGesture { controller.selectBoard(b.id) }
                             .popover(isPresented: Binding(get: { showRenamePopover && editingBoard?.id == b.id }, set: { v in showRenamePopover = v })) {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("重命名").font(.system(size: 13, weight: .medium))
-                                    TextField("名称", text: $renameInput)
+                                    Text(L("panel.rename.title")).font(.system(size: 13, weight: .medium))
+                                    TextField(L("panel.name.placeholder"), text: $renameInput)
                                         .textFieldStyle(.roundedBorder)
                                         .onSubmit {
                                             let name = renameInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                                            if let id = editingBoard?.id { controller.store.updatePinboardName(id, name: name.isEmpty ? "未命名" : name) }
+                                            if let id = editingBoard?.id { controller.store.updatePinboardName(id, name: name.isEmpty ? L("panel.rename.untitled") : name) }
                                             controller.refresh()
                                             showRenamePopover = false
                                         }
                                     HStack {
                                         Spacer()
-                                        Button("取消") { showRenamePopover = false }
-                                        Button("保存") {
+                                        Button(L("panel.cancel")) { showRenamePopover = false }
+                                        Button(L("timeline.rename.save")) {
                                             let name = renameInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                                            if let id = editingBoard?.id { controller.store.updatePinboardName(id, name: name.isEmpty ? "未命名" : name) }
+                                            if let id = editingBoard?.id { controller.store.updatePinboardName(id, name: name.isEmpty ? L("panel.rename.untitled") : name) }
                                             controller.refresh()
                                             showRenamePopover = false
                                         }.keyboardShortcut(.defaultAction)
@@ -177,7 +177,7 @@ struct PanelRootView: View {
                             }
                             .popover(isPresented: Binding(get: { showColorPopover && editingBoard?.id == b.id }, set: { v in showColorPopover = v })) {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("分组颜色").font(.system(size: 13, weight: .medium))
+                                    Text(L("panel.boardColor.title")).font(.system(size: 13, weight: .medium))
                                     HStack(spacing: 8) {
                                         ForEach(["red","orange","yellow","green","blue","indigo","purple","pink"], id: \.self) { c in
                                             Circle()
@@ -189,18 +189,18 @@ struct PanelRootView: View {
                                                     showColorPopover = false
                                                 }
                                         }
-                                        Button("清除") {
+                                        Button(L("panel.clear")) {
                                             if let id = editingBoard?.id { controller.store.updatePinboardColor(id, color: nil) }
                                             controller.refresh()
                                             showColorPopover = false
                                         }
                                     }
-                                    TextField("十六进制，例如 #FF8800", text: $colorInput)
+                                    TextField(L("panel.color.hexPlaceholder"), text: $colorInput)
                                         .textFieldStyle(.roundedBorder)
                                     HStack {
                                         Spacer()
-                                        Button("取消") { showColorPopover = false }
-                                        Button("保存") {
+                                        Button(L("panel.cancel")) { showColorPopover = false }
+                                        Button(L("timeline.rename.save")) {
                                             var s = colorInput.trimmingCharacters(in: .whitespacesAndNewlines)
                                             if s.isEmpty { s = "" }
                                             if let id = editingBoard?.id { controller.store.updatePinboardColor(id, color: s.isEmpty ? nil : s) }
@@ -249,7 +249,7 @@ struct PanelRootView: View {
                         }
                 )
                 VStack(spacing: 0) {
-                    HistoryTimelineView(items: controller.items, boards: controller.boards, defaultBoardID: controller.store.defaultBoardID, onPaste: { item, plain in controller.pasteItem(item, plain: plain) }, onAddToBoard: { item, bid in controller.addToBoard(item, bid) }, onDelete: { item in controller.deleteItem(item) }, selectedItemID: controller.selectedItemID, onSelect: { item in controller.selectItem(item) }, onRename: { item, name in controller.renameItem(item, name: name) })
+                    HistoryTimelineView(items: controller.items, boards: controller.boards, defaultBoardID: controller.store.defaultBoardID, currentBoardID: controller.selectedBoardID, onPaste: { item, plain in controller.pasteItem(item, plain: plain) }, onAddToBoard: { item, bid in controller.addToBoard(item, bid) }, onDelete: { item in controller.deleteItem(item) }, selectedItemID: controller.selectedItemID, onSelect: { item in controller.selectItem(item) }, onRename: { item, name in controller.renameItem(item, name: name) })
                         .animation(.easeInOut(duration: 0.35), value: controller.items)
                         .animation(.easeInOut(duration: 0.35), value: layoutStyleRaw)
                 }
@@ -260,6 +260,10 @@ struct PanelRootView: View {
         .onChange(of: sidebarWidth) { w in controller.sidebarWidth = w }
         .onChange(of: layoutStyleRaw) { _ in controller.panel.updateLayoutHeight(animated: true) }
         .frame(minWidth: 880, minHeight: 290)
+    }
+    private func boardDisplayName(_ b: Pinboard) -> String {
+        if b.id == controller.store.defaultBoardID && b.name == "剪贴板" { return L("boards.default.displayName") }
+        return b.name
     }
     private func reportSearchFrame(_ geo: GeometryProxy) {
         if let win = NSApp.keyWindow ?? NSApp.windows.first {

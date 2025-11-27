@@ -3,18 +3,19 @@ import SwiftUI
 public struct SettingsView: View {
     @State private var settings = AppSettings()
     @AppStorage("historyLayoutStyle") private var layoutStyleRaw: String = "horizontal"
+    @AppStorage("appLanguage") private var appLanguage: String = "zh-Hans"
     private let settingsStore = SettingsStore()
     public init() {}
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("设置")
+            Text(L("settings.title"))
                 .font(.system(size: 16, weight: .semibold))
             VStack(alignment: .leading, spacing: 8) {
-                Text("通用")
+                Text(L("settings.section.general"))
                     .font(.system(size: 13, weight: .medium))
                 VStack(spacing: 6) {
                     HStack {
-                        Text("保留天数")
+                        Text(L("settings.retentionDays"))
                             .font(.system(size: 13))
                             .frame(width: 80, alignment: .leading)
                         Spacer()
@@ -28,7 +29,7 @@ public struct SettingsView: View {
                     .padding(.vertical, 6)
                     .padding(.horizontal, 8)
                     HStack {
-                        Text("保留条数")
+                        Text(L("settings.maxItems"))
                             .font(.system(size: 13))
                             .frame(width: 80, alignment: .leading)
                         Spacer()
@@ -42,13 +43,27 @@ public struct SettingsView: View {
                     .padding(.vertical, 6)
                     .padding(.horizontal, 8)
                     HStack {
-                        Text("历史布局")
+                        Text(L("settings.appLanguage"))
+                            .font(.system(size: 13))
+                            .frame(width: 80, alignment: .leading)
+                        Spacer()
+                        Picker("", selection: $appLanguage) {
+                            Text(L("language.zh")).tag("zh-Hans")
+                            Text(L("language.en")).tag("en")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 160)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    HStack {
+                        Text(L("settings.historyLayout"))
                             .font(.system(size: 13))
                             .frame(width: 80, alignment: .leading)
                         Spacer()
                         Picker("", selection: Binding(get: { HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal }, set: { layoutStyleRaw = $0.rawValue })) {
-                            Text("横向列表").tag(HistoryLayoutStyle.horizontal)
-                            Text("网格布局").tag(HistoryLayoutStyle.grid)
+                            Text(L("settings.historyLayout.horizontal")).tag(HistoryLayoutStyle.horizontal)
+                            Text(L("settings.historyLayout.grid")).tag(HistoryLayoutStyle.grid)
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 160)
@@ -65,11 +80,11 @@ public struct SettingsView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
             VStack(alignment: .leading, spacing: 8) {
-                Text("快捷键")
+                Text(L("shortcuts.title"))
                     .font(.system(size: 13, weight: .medium))
                 VStack(spacing: 6) {
                     HStack {
-                        Text("面板")
+                        Text(L("shortcuts.panel"))
                             .font(.system(size: 13))
                             .frame(width: 80, alignment: .leading)
                         Spacer()
@@ -88,11 +103,11 @@ public struct SettingsView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
             VStack(alignment: .leading, spacing: 8) {
-                Text("声明")
+                Text(L("about.title"))
                     .font(.system(size: 13, weight: .medium))
                 VStack(spacing: 6) {
                     HStack {
-                        Text("本软件开源，致力于提供简约、好看、丝滑的使用体验。")
+                        Text(L("about.text"))
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -113,6 +128,7 @@ public struct SettingsView: View {
         .frame(maxWidth: 360)
         .controlSize(.small)
         .onAppear { settings = settingsStore.load() }
+        .onChange(of: appLanguage) { _ in }
         .onChange(of: settings) { s in
             try? settingsStore.save(s)
             HotkeyService.shared?.unregisterAll()
@@ -121,4 +137,5 @@ public struct SettingsView: View {
             HotkeyService.shared?.registerStackToggle()
         }
     }
+    
 }

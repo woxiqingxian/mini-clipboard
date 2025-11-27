@@ -41,22 +41,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 button.title = "MiniClip"
             }
         }
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "面板", action: #selector(openPanel), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "设置", action: #selector(openSettings), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "退出", action: #selector(quitApp), keyEquivalent: ""))
-        item.menu = menu
+        item.menu = buildStatusMenu()
         statusItem = item
+        observeLanguageChanges()
+    }
+    private func buildStatusMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: L("panel.menu.panel"), action: #selector(openPanel), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: L("panel.menu.settings"), action: #selector(openSettings), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: L("panel.menu.quit"), action: #selector(quitApp), keyEquivalent: ""))
+        return menu
+    }
+    private func observeLanguageChanges() {
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            if let item = self.statusItem { item.menu = self.buildStatusMenu() }
+            if let w = self.preferencesWindow { w.title = L("window.settings.title") }
+        }
     }
     private func ensureAccessibilityPermission() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
         if !trusted {
             let alert = NSAlert()
-            alert.messageText = "需要辅助权限"
-            alert.informativeText = "请在系统设置的隐私与安全 > 辅助功能中为 MiniClipboard 开启权限，以使用全局粘贴和自动隐藏等功能。"
-            alert.addButton(withTitle: "打开设置")
-            alert.addButton(withTitle: "稍后")
+            alert.messageText = L("alert.accessibility.title")
+            alert.informativeText = L("alert.accessibility.message")
+            alert.addButton(withTitle: L("alert.accessibility.openSettings"))
+            alert.addButton(withTitle: L("alert.accessibility.later"))
             let r = alert.runModal()
             if r == .alertFirstButtonReturn {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -87,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !handled {
             if preferencesWindow == nil {
                 let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 460), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-                w.title = "设置"
+                w.title = L("window.settings.title")
                 w.isReleasedWhenClosed = false
                 w.delegate = self
                 let hosting = NSHostingView(rootView: SettingsView())

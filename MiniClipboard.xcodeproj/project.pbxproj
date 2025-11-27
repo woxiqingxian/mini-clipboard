@@ -33,6 +33,8 @@
 		A10000101A /* PreviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000307 /* PreviewService.swift */; };
 		A100001018 /* public in Resources */ = {isa = PBXBuildFile; fileRef = A100000F10 /* public */; };
 		A100001019 /* logo.icns in Resources */ = {isa = PBXBuildFile; fileRef = A100000F11 /* logo.icns */; };
+		A10000101B /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000308 /* Localization.swift */; };
+		A10000101C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A100001020 /* Localizable.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +57,7 @@
 		A100000305 /* PrivacyRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyRules.swift; sourceTree = "<group>"; };
 		A100000306 /* Protocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocols.swift; sourceTree = "<group>"; };
 		A100000307 /* PreviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewService.swift; sourceTree = "<group>"; };
+		A100000308 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A100000401 /* IndexStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexStore.swift; sourceTree = "<group>"; };
 		A100000402 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		A100000501 /* ClipItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipItem.swift; sourceTree = "<group>"; };
@@ -65,7 +68,16 @@
 		A100000602 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		A100000F10 /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		A100000F11 /* logo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = logo.icns; path = public/logo.icns; sourceTree = "<group>"; };
+		A100001021 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A100001022 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh_CN; path = zh_CN.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXVariantGroup section */
+		A100001020 /* Localizable.strings */ = {isa = PBXVariantGroup; children = (
+			A100001021 /* en */,
+			A100001022 /* zh_CN */,
+		); name = Localizable.strings; sourceTree = "<group>"; };
+/* End PBXVariantGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A100000700 /* Frameworks */ = {
@@ -90,6 +102,7 @@
 				A100000D00 /* Models */,
 				A100000F10 /* public */,
 				A100000F11 /* logo.icns */,
+				A100001020 /* Localizable.strings */,
 				A100000001 /* Mini Clipboard.app */,
 				A100000E00 /* Frameworks */,
 			);
@@ -130,6 +143,7 @@
 				A100000305 /* PrivacyRules.swift */,
 				A100000306 /* Protocols.swift */,
 				A100000307 /* PreviewService.swift */,
+				A100000308 /* Localization.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -216,6 +230,7 @@
 			files = (
 				A100001018 /* public in Resources */,
 				A100001019 /* logo.icns in Resources */,
+				A10000101C /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -248,6 +263,7 @@
 				A100001016 /* WindowDragHandle.swift in Sources */,
 				A100001017 /* ShortcutRecorder.swift in Sources */,
 				A10000101A /* PreviewService.swift in Sources */,
+				A10000101B /* Localization.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

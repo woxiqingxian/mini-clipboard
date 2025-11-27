@@ -108,19 +108,20 @@ final class AppController: ObservableObject {
         store.moveToFront(item.id)
         refresh()
         panel.hide()
-        let msg = plain ? "已复制为纯文本" : "已复制到剪贴板"
+        let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "zh-Hans"
+        let msg = plain ? L("toast.copiedPlain") : L("toast.copied")
         panel.showToast(msg)
     }
     func addToBoard(_ item: ClipItem, _ boardID: UUID) {
         try? store.pin(item.id, to: boardID)
         refresh()
-        panel.showToast("已添加到分组")
+        panel.showToast(L("toast.addedToBoard"))
     }
     func deleteItem(_ item: ClipItem) {
         try? store.delete(item.id)
         if selectedItemID == item.id { selectedItemID = nil }
         refresh()
-        panel.showToast("已删除")
+        panel.showToast(L("toast.deleted"))
     }
     func renameItem(_ item: ClipItem, name: String) {
         var updated = item

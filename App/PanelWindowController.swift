@@ -269,7 +269,7 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
             CFRunLoopAddSource(CFRunLoopGetCurrent(), src, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
         } else {
-            showToast("需要输入监控权限")
+            showToast(L("permission.inputMonitoring"))
         }
     }
     private func ensureEventTapActive() {
