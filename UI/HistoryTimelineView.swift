@@ -5,6 +5,14 @@ import CoreImage
 import Combine
 
 // 历史时间轴视图：横向滚动展示剪贴条目的卡片列表
+private struct ItemFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [UUID: CGRect] = [:]
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) { value.merge(nextValue(), uniquingKeysWith: { _, new in new }) }
+}
+private struct ContainerFramePreferenceKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
+}
 public struct HistoryTimelineView: View {
     public let items: [ClipItem]
     public let boards: [Pinboard]
@@ -31,43 +39,92 @@ public struct HistoryTimelineView: View {
     }
     @State private var displayedCount: Int = 60
     private var displayedItems: [ClipItem] { Array(items.prefix(displayedCount)) }
+    @State private var itemFrames: [UUID: CGRect] = [:]
+    @State private var containerFrame: CGRect = .zero
     public var body: some View {
-        Group {
-            if layoutStyle == .horizontal {
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 12) {
-                        ForEach(displayedItems) { item in
-                            ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
-                                .equatable()
+        ScrollViewReader { proxy in
+            Group {
+                if layoutStyle == .horizontal {
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 12) {
+                            ForEach(displayedItems) { item in
+                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
+                                    .equatable()
+                                    .id(item.id)
+                                    .background(
+                                        GeometryReader { g in
+                                            Color.clear.preference(key: ItemFramePreferenceKey.self, value: [item.id: g.frame(in: .global)])
+                                        }
+                                    )
+                            }
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(width: 1, height: 1)
+                                .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
                         }
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 1, height: 1)
-                            .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
-                .frame(maxWidth: .infinity)
-                .onChange(of: items.count) { c in displayedCount = min(c, 60) }
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
-                        ForEach(displayedItems) { item in
-                            ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
-                                .equatable()
+                    .background(
+                        GeometryReader { g in
+                            Color.clear.preference(key: ContainerFramePreferenceKey.self, value: g.frame(in: .global))
                         }
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: 1)
-                            .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
+                    )
+                    .frame(maxWidth: .infinity)
+                    .onChange(of: items.count) { c in displayedCount = min(c, 60) }
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
+                            ForEach(displayedItems) { item in
+                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
+                                    .equatable()
+                                    .id(item.id)
+                                    .background(
+                                        GeometryReader { g in
+                                            Color.clear.preference(key: ItemFramePreferenceKey.self, value: [item.id: g.frame(in: .global)])
+                                        }
+                                    )
+                            }
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(height: 1)
+                                .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 12)
+                    .background(
+                        GeometryReader { g in
+                            Color.clear.preference(key: ContainerFramePreferenceKey.self, value: g.frame(in: .global))
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+                    .onChange(of: items.count) { c in displayedCount = min(c, 60) }
                 }
-                .frame(maxWidth: .infinity)
-                .onChange(of: items.count) { c in displayedCount = min(c, 60) }
             }
+            .onPreferenceChange(ItemFramePreferenceKey.self) { v in itemFrames = v }
+            .onPreferenceChange(ContainerFramePreferenceKey.self) { v in containerFrame = v }
+            .onChange(of: selectedItemID) { id in
+                if let id, let idx = items.firstIndex(where: { $0.id == id }) {
+                    displayedCount = min(items.count, max(displayedCount, idx + 1))
+                    if shouldScroll(to: id) {
+                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) }
+                    }
+                }
+            }
+        }
+    }
+    private func shouldScroll(to id: UUID) -> Bool {
+        guard let f = itemFrames[id], containerFrame != .zero else { return true }
+        let t: CGFloat = 32
+        if layoutStyle == .horizontal {
+            if f.minX < containerFrame.minX + t { return true }
+            if f.maxX > containerFrame.maxX - t { return true }
+            return false
+        } else {
+            if f.minY < containerFrame.minY + t { return true }
+            if f.maxY > containerFrame.maxY - t { return true }
+            return false
         }
     }
     private func title(for item: ClipItem) -> String { item.text ?? item.contentRef?.lastPathComponent ?? "Item" }
