@@ -12,9 +12,8 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
     private var keyMonitor: Any?
     private var effectView: NSVisualEffectView?
     private var toastWindow: NSWindow?
-    private var eventTap: CFMachPort?
-    private var eventRunLoopSource: CFRunLoopSource?
     private var imeField: NSTextField?
+    private var previousFrontApp: NSRunningApplication?
     private var searchOverlayWindow: NSPanel?
     private var searchOverlayField: NSTextField?
     private var searchOverlayRect: CGRect?
@@ -53,8 +52,7 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
     public func show() {
         guard let rootView = rootView else { return }
         if window == nil {
-            // 首次创建辅助窗口（utility）透明浮层，置于前台但不激活
-            let w = NSPanel(contentRect: NSRect(x: 0, y: 0, width: targetWidth(), height: targetHeight()), styleMask: [.utilityWindow, .nonactivatingPanel], backing: .buffered, defer: false)
+            let w = NSPanel(contentRect: NSRect(x: 0, y: 0, width: targetWidth(), height: targetHeight()), styleMask: [.utilityWindow], backing: .buffered, defer: false)
             w.isReleasedWhenClosed = false
             w.titleVisibility = .hidden
             w.titlebarAppearsTransparent = true
@@ -94,6 +92,8 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         }
         positionCenter()
         if let w = window {
+            previousFrontApp = NSWorkspace.shared.frontmostApplication
+            NSApp.activate(ignoringOtherApps: true)
             let finalFrame = w.frame
             let scale: CGFloat = 0.96
             let initSize = NSSize(width: finalFrame.size.width * scale, height: finalFrame.size.height * scale)
@@ -102,7 +102,7 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
             initOrigin.y += (finalFrame.size.height - initSize.height) / 2
             effectView?.alphaValue = 0
             w.setFrame(NSRect(origin: initOrigin, size: initSize), display: false)
-            w.orderFrontRegardless()
+            w.makeKeyAndOrderFront(nil)
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.16
                 (w.animator()).setFrame(finalFrame, display: true)
@@ -112,7 +112,9 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
             NSCursor.arrow.set()
             DispatchQueue.main.async { NSCursor.arrow.set() }
         } else {
-            window?.orderFrontRegardless()
+            previousFrontApp = NSWorkspace.shared.frontmostApplication
+            NSApp.activate(ignoringOtherApps: true)
+            window?.makeKeyAndOrderFront(nil)
             if let w = window, let ev = effectView { w.invalidateCursorRects(for: ev) }
             NSCursor.arrow.set()
             DispatchQueue.main.async { NSCursor.arrow.set() }
@@ -121,8 +123,7 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         onQueryUpdate?("")
         // 安装失焦与外部点击自动隐藏行为
         installHidingBehavior()
-        installEventTap()
-        ensureEventTapActive()
+        installKeyMonitor()
         imeField?.stringValue = ""
         onShown?()
     }
@@ -145,10 +146,17 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
             effectView?.animator().alphaValue = 0
         } completionHandler: {
             w.orderOut(nil)
+            let prev = self.previousFrontApp
+            self.previousFrontApp = nil
+            if let app = prev, app.processIdentifier != NSRunningApplication.current.processIdentifier {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                    app.activate(options: [.activateIgnoringOtherApps])
+                }
+            }
         }
         inputBuffer = ""
         onQueryUpdate?("")
-        uninstallEventTap()
+        uninstallKeyMonitor()
         imeField?.stringValue = ""
         searchOverlayWindow?.orderOut(nil)
         searchOverlayWindow = nil
@@ -204,80 +212,55 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
                 if self.window?.isVisible == true { self.hide() }
             }
         }
-        // 键盘事件在 CGEventTap 中处理
+        // 键盘事件通过本地监控处理
         // 应用失活时隐藏面板
         NotificationCenter.default.addObserver(self, selector: #selector(appDidResignActive), name: NSApplication.didResignActiveNotification, object: nil)
     }
-    private func installEventTap() {
-        uninstallEventTap()
-        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-        let callback: CGEventTapCallBack = { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
-            guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
-            let ctrl = Unmanaged<PanelWindowController>.fromOpaque(refcon).takeUnretainedValue()
-            if ctrl.window?.isVisible != true { return Unmanaged.passUnretained(event) }
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let tap = ctrl.eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
-                return Unmanaged.passUnretained(event)
-            }
-            if type == .keyDown {
-                let keycode = event.getIntegerValueField(.keyboardEventKeycode)
-                if keycode == 57 || keycode == 102 || keycode == 104 { return Unmanaged.passUnretained(event) }
+    private func installKeyMonitor() {
+        uninstallKeyMonitor()
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] ev in
+            guard let self = self else { return ev }
+            if self.window?.isVisible != true { return ev }
+            if ev.type == .keyDown {
+                let keycode = ev.keyCode
+                if keycode == 57 || keycode == 102 || keycode == 104 { return ev }
                 if keycode == 49 {
-                    if ctrl.isFirstResponderTextInput() || ctrl.isAnyTextInputActive() || ctrl.isSearchActive { return Unmanaged.passUnretained(event) }
-                    ctrl.onSpace?()
+                    if self.isFirstResponderTextInput() || self.isAnyTextInputActive() || self.isSearchActive { return ev }
+                    self.onSpace?()
                     return nil
                 }
                 if keycode == 53 {
-                    if ctrl.isSearchActive { ctrl.onHideSearchPopover?(); return nil }
-                    if ctrl.previewService?.isVisible() == true { ctrl.previewService?.close(); return nil }
-                    ctrl.hide();
+                    if self.isSearchActive { self.onHideSearchPopover?(); return nil }
+                    if self.previewService?.isVisible() == true { self.previewService?.close(); return nil }
+                    self.hide();
                     return nil
                 }
-                let flags = event.flags
-                if flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate) { return Unmanaged.passUnretained(event) }
-                // 方向键与回车处理（面板自身拦截）
-                if !ctrl.isFirstResponderTextInput() && !ctrl.isAnyTextInputActive() {
-                    if keycode == 123 { ctrl.onArrowLeft?(); return nil }
-                    if keycode == 124 { ctrl.onArrowRight?(); return nil }
-                    if keycode == 126 { ctrl.onArrowUp?(); return nil }
-                    if keycode == 125 { ctrl.onArrowDown?(); return nil }
-                    if keycode == 36 || keycode == 76 { ctrl.onEnter?(); return nil }
+                let flags = ev.modifierFlags
+                if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return ev }
+                if !self.isFirstResponderTextInput() && !self.isAnyTextInputActive() {
+                    if keycode == 123 { self.onArrowLeft?(); return nil }
+                    if keycode == 124 { self.onArrowRight?(); return nil }
+                    if keycode == 126 { self.onArrowUp?(); return nil }
+                    if keycode == 125 { self.onArrowDown?(); return nil }
+                    if keycode == 36 || keycode == 76 { self.onEnter?(); return nil }
                 }
-                if ctrl.isFirstResponderTextInput() { return Unmanaged.passUnretained(event) }
-                if ctrl.isAnyTextInputActive() { return Unmanaged.passUnretained(event) }
-                if let ne = NSEvent(cgEvent: event), let s = ne.charactersIgnoringModifiers, !s.isEmpty {
-                    if ctrl.isSearchActive {
-                        return Unmanaged.passUnretained(event)
+                if self.isFirstResponderTextInput() { return ev }
+                if self.isAnyTextInputActive() { return ev }
+                if let s = ev.charactersIgnoringModifiers, !s.isEmpty {
+                    if self.isSearchActive {
+                        return ev
                     } else {
-                        ctrl.onShowSearchPopover?(nil)
-                        if let copied = event.copy() {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.015) {
-                                copied.post(tap: .cgSessionEventTap)
-                            }
+                        self.onShowSearchPopover?(nil)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                            self.onQueryUpdate?(s)
                         }
                         return nil
                     }
                 }
-                return Unmanaged.passUnretained(event)
+                return ev
             }
-            return Unmanaged.passUnretained(event)
+            return ev
         }
-        if let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: callback, userInfo: Unmanaged.passUnretained(self).toOpaque()) {
-            eventTap = tap
-            let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-            eventRunLoopSource = src
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), src, .commonModes)
-            CGEvent.tapEnable(tap: tap, enable: true)
-        } else {
-            showToast(L("permission.inputMonitoring"))
-        }
-    }
-    private func ensureEventTapActive() {
-        if eventTap == nil || eventRunLoopSource == nil {
-            installEventTap()
-            return
-        }
-        if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
     }
     public func contentWidth() -> CGFloat {
         if let w = window { return w.frame.size.width }
@@ -340,16 +323,8 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         }
         return false
     }
-    private func uninstallEventTap() {
-        if let src = eventRunLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), src, .commonModes)
-            eventRunLoopSource = nil
-        }
-        if let tap = eventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-            CFMachPortInvalidate(tap)
-            eventTap = nil
-        }
+    private func uninstallKeyMonitor() {
+        if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
     }
     private func prepareIMEField() {
         guard let ev = effectView else { return }

@@ -19,6 +19,9 @@ public final class PreviewService: NSObject {
             w.isFloatingPanel = true
             w.titleVisibility = .hidden
             w.titlebarAppearsTransparent = true
+            w.standardWindowButton(.closeButton)?.isHidden = true
+            w.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            w.standardWindowButton(.zoomButton)?.isHidden = true
             w.isMovableByWindowBackground = true
             w.becomesKeyOnlyIfNeeded = true
             w.minSize = NSSize(width: 360, height: 280)

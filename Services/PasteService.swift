@@ -10,7 +10,6 @@ public final class PasteService: PasteServiceProtocol {
     public func paste(_ item: ClipItem, plainText: Bool) {
         // 单次粘贴（可选择纯文本）
         writeToPasteboard(item, plainText: plainText)
-        // sendCommandV()
     }
     // 开启栈式粘贴，asc 控制顺序（正序/倒序）
     public func activateStack(directionAsc: Bool) { stackActive = true; asc = directionAsc }
@@ -21,7 +20,6 @@ public final class PasteService: PasteServiceProtocol {
         let seq = asc ? stack : stack.reversed()
         for i in seq {
             writeToPasteboard(i, plainText: false)
-            // sendCommandV()
         }
         stack.removeAll()
     }
@@ -91,17 +89,5 @@ public final class PasteService: PasteServiceProtocol {
         case .color:
             break
         }
-    }
-
-    // 纯文本粘贴不做富文本到纯文本的重写，避免数据不一致
-    private func sendCommandV() {
-        // 通过 CGEvent 模拟 Command+V 键盘事件以触发粘贴
-        let src = CGEventSource(stateID: .combinedSessionState)
-        let vDown = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: true)
-        vDown?.flags = [.maskCommand]
-        let vUp = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: false)
-        vUp?.flags = [.maskCommand]
-        vDown?.post(tap: .cghidEventTap)
-        vUp?.post(tap: .cghidEventTap)
     }
 }
