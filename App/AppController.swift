@@ -77,7 +77,7 @@ final class AppController: ObservableObject {
         selectedBoardID = store.defaultBoardID
 
         $query
-            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .debounce(for: .milliseconds(120), scheduler: DispatchQueue.main)
             .removeDuplicates()
             .sink { [weak self] _ in self?.refresh() }
             .store(in: &cancellables)

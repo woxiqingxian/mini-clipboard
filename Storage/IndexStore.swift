@@ -5,6 +5,7 @@ public final class IndexStore: IndexStoreProtocol {
     private var items: [ClipItem] = []
     private var pinboards: [Pinboard] = []
     private var boardItems: [UUID: Set<UUID>] = [:]
+    private var contentCache: [UUID: String] = [:]
     private let queue = DispatchQueue(label: "store.queue", qos: .userInitiated)
     public private(set) var defaultBoardID: UUID
     private let indexURL: URL
@@ -37,6 +38,7 @@ public final class IndexStore: IndexStoreProtocol {
             let persisted = ensurePermanentContent(item)
             items.removeAll { isDuplicate($0, persisted) }
             if let i = items.firstIndex(where: { $0.id == persisted.id }) { items[i] = persisted } else { items.insert(persisted, at: 0) }
+            contentCache[persisted.id] = nil
             persist()
             let s = settingsStore.load()
             cleanupExpiredItems(days: s.historyRetentionDays)
@@ -47,6 +49,7 @@ public final class IndexStore: IndexStoreProtocol {
         queue.sync {
             items.removeAll { $0.id == id }
             for (bid, set) in boardItems { var s = set; s.remove(id); boardItems[bid] = s }
+            contentCache[id] = nil
             persist()
         }
     }
@@ -71,26 +74,31 @@ public final class IndexStore: IndexStoreProtocol {
         }
     }
     private func itemMatches(_ item: ClipItem, qs: String) -> Bool {
-        if matches(hay: item.text?.lowercased(), needle: qs) { return true }
-        if matches(hay: item.metadata["url"]?.lowercased(), needle: qs) { return true }
-        if item.type == .text, let u = item.contentRef {
-            let ext = u.pathExtension.lowercased()
-            if ext == "txt" {
-                if let s = try? String(contentsOf: u) {
-                    if matches(hay: s.lowercased(), needle: qs) { return true }
-                }
-            } else {
-                if let a = try? NSAttributedString(url: u, options: [:], documentAttributes: nil) {
-                    if matches(hay: a.string.lowercased(), needle: qs) { return true }
-                }
-            }
-        }
+        if let agg = aggregatedText(item) { return matches(hay: agg, needle: qs) }
         return false
     }
 
     private func matches(hay: String?, needle: String) -> Bool {
         guard let h = hay, !h.isEmpty else { return false }
         return h.contains(needle)
+    }
+    private func aggregatedText(_ item: ClipItem) -> String? {
+        if let cached = contentCache[item.id] { return cached }
+        var parts: [String] = []
+        if let t = item.text, !t.isEmpty { parts.append(t) }
+        if let url = item.metadata["url"], !url.isEmpty { parts.append(url) }
+        if item.type == .text, let u = item.contentRef {
+            let ext = u.pathExtension.lowercased()
+            if ext == "txt" {
+                if let s = try? String(contentsOf: u) { parts.append(s) }
+            } else if let a = try? NSAttributedString(url: u, options: [:], documentAttributes: nil) {
+                parts.append(a.string)
+            }
+        }
+        guard !parts.isEmpty else { return nil }
+        let agg = parts.joined(separator: " ").lowercased()
+        contentCache[item.id] = agg
+        return agg
     }
     public func pin(_ id: UUID, to boardID: UUID) throws {
         queue.sync {
@@ -227,6 +235,8 @@ public final class IndexStore: IndexStoreProtocol {
         let pinned = Set(boardItems.values.flatMap { $0 })
         let beforeCount = items.count
         items.removeAll { !pinned.contains($0.id) && $0.copiedAt < cutoff }
+        let existing = Set(items.map { $0.id })
+        contentCache = contentCache.filter { existing.contains($0.key) }
         if items.count != beforeCount { persist() }
     }
 
@@ -235,6 +245,8 @@ public final class IndexStore: IndexStoreProtocol {
         if limit <= 0 {
             let beforeCount = items.count
             items.removeAll { !pinned.contains($0.id) }
+            let existing = Set(items.map { $0.id })
+            contentCache = contentCache.filter { existing.contains($0.key) }
             if items.count != beforeCount { persist() }
             return
         }
@@ -245,6 +257,8 @@ public final class IndexStore: IndexStoreProtocol {
         let idsToRemove = Set(sorted.prefix(excess).map { $0.id })
         let beforeCount = items.count
         items.removeAll { idsToRemove.contains($0.id) }
+        let existing = Set(items.map { $0.id })
+        contentCache = contentCache.filter { existing.contains($0.key) }
         if items.count != beforeCount { persist() }
     }
 }
