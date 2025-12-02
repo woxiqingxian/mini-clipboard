@@ -64,6 +64,7 @@ public struct SettingsView: View {
                         Picker("", selection: Binding(get: { HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal }, set: { layoutStyleRaw = $0.rawValue })) {
                             Text(L("settings.historyLayout.horizontal")).tag(HistoryLayoutStyle.horizontal)
                             Text(L("settings.historyLayout.grid")).tag(HistoryLayoutStyle.grid)
+                            Text(L("settings.historyLayout.vertical")).tag(HistoryLayoutStyle.vertical)
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 160)

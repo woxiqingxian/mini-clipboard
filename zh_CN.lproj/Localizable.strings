@@ -6,6 +6,7 @@
 "settings.historyLayout" = "历史布局";
 "settings.historyLayout.horizontal" = "横向列表";
 "settings.historyLayout.grid" = "网格布局";
+"settings.historyLayout.vertical" = "纵向列表";
 "shortcuts.title" = "快捷键";
 "shortcuts.panel" = "面板";
 "about.title" = "声明";

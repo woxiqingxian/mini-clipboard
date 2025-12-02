@@ -124,7 +124,6 @@ final class AppController: ObservableObject {
         store.moveToFront(item.id)
         refresh()
         panel.hide()
-        let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "zh-Hans"
         let msg = plain ? L("toast.copiedPlain") : L("toast.copied")
         panel.showToast(msg)
     }
@@ -205,6 +204,10 @@ final class AppController: ObservableObject {
             let idx = currentIndex() ?? 0
             selectionByKeyboard = true
             setIndex(idx - cols)
+        } else if layoutStyle() == .vertical {
+            let idx = currentIndex() ?? 0
+            selectionByKeyboard = true
+            setIndex(idx - 1)
         }
     }
     private func moveSelectionDown() {
@@ -214,6 +217,10 @@ final class AppController: ObservableObject {
             let idx = currentIndex() ?? 0
             selectionByKeyboard = true
             setIndex(idx + cols)
+        } else if layoutStyle() == .vertical {
+            let idx = currentIndex() ?? 0
+            selectionByKeyboard = true
+            setIndex(idx + 1)
         }
     }
     private func confirmSelectionAndPaste() {

@@ -26,7 +26,7 @@ public struct HistoryTimelineView: View {
     public let onRename: (ClipItem, String) -> Void
     public let scrollOnSelection: Bool
     @AppStorage("historyLayoutStyle") private var layoutStyleRaw: String = "horizontal"
-    public init(items: [ClipItem], boards: [Pinboard], defaultBoardID: UUID, currentBoardID: UUID?, onPaste: @escaping (ClipItem, Bool) -> Void, onAddToBoard: @escaping (ClipItem, UUID) -> Void, onDelete: @escaping (ClipItem) -> Void, selectedItemID: UUID?, onSelect: @escaping (ClipItem) -> Void, onRename: @escaping (ClipItem, String) -> Void, scrollOnSelection: Bool) {
+    public init(items: [ClipItem], boards: [Pinboard], defaultBoardID: UUID, currentBoardID: UUID?, onPaste: @escaping (ClipItem, Bool) -> Void, onAddToBoard: @escaping (ClipItem, UUID) -> Void, onDelete: @escaping (ClipItem) -> Void, selectedItemID: UUID?, onSelect: @escaping (ClipItem) -> Void, onRename: @escaping (ClipItem, String) -> Void, scrollOnSelection: Bool, onSelectedItemFrame: ((CGRect?) -> Void)? = nil) {
         self.items = items
         self.boards = boards
         self.defaultBoardID = defaultBoardID
@@ -38,6 +38,7 @@ public struct HistoryTimelineView: View {
         self.onSelect = onSelect
         self.onRename = onRename
         self.scrollOnSelection = scrollOnSelection
+        self.onSelectedItemFrame = onSelectedItemFrame
     }
     @State private var displayedCount: Int = 60
     private var displayedItems: [ClipItem] { Array(items.prefix(displayedCount)) }
@@ -50,12 +51,12 @@ public struct HistoryTimelineView: View {
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 12) {
                             ForEach(displayedItems) { item in
-                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
+                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: cardWidth)
                                     .equatable()
                                     .id(item.id)
                                     .background(
                                         GeometryReader { g in
-                                            Color.clear.preference(key: ItemFramePreferenceKey.self, value: [item.id: g.frame(in: .global)])
+                                            Color.clear.preference(key: ItemFramePreferenceKey.self, value: [item.id: g.frame(in: .named("PanelWindow"))])
                                         }
                                     )
                             }
@@ -69,16 +70,44 @@ public struct HistoryTimelineView: View {
                     }
                     .background(
                         GeometryReader { g in
-                            Color.clear.preference(key: ContainerFramePreferenceKey.self, value: g.frame(in: .global))
+                            Color.clear.preference(key: ContainerFramePreferenceKey.self, value: g.frame(in: .named("PanelWindow")))
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+                    .onChange(of: items.count) { c in displayedCount = min(c, 60) }
+                } else if layoutStyle == .grid {
+                    ScrollView {
+                        LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
+                            ForEach(displayedItems) { item in
+                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: cardWidth)
+                                    .equatable()
+                                    .id(item.id)
+                                    .background(
+                                        GeometryReader { g in
+                                            Color.clear.preference(key: ItemFramePreferenceKey.self, value: [item.id: g.frame(in: .named("PanelWindow"))])
+                                        }
+                                    )
+                            }
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(height: 1)
+                                .onAppear { if displayedCount < items.count { displayedCount = min(items.count, displayedCount + 60) } }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                    }
+                    .background(
+                        GeometryReader { g in
+                            Color.clear.preference(key: ContainerFramePreferenceKey.self, value: g.frame(in: .named("PanelWindow")))
                         }
                     )
                     .frame(maxWidth: .infinity)
                     .onChange(of: items.count) { c in displayedCount = min(c, 60) }
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
+                        LazyVStack(alignment: .leading, spacing: 12) {
                             ForEach(displayedItems) { item in
-                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: gridCardWidth)
+                                ItemCardView(item: item, boards: boards, defaultBoardID: defaultBoardID, currentBoardID: currentBoardID, onPaste: onPaste, onAddToBoard: onAddToBoard, onDelete: onDelete, selected: (selectedItemID == item.id), onSelect: onSelect, onRename: onRename, cardWidth: cardWidth)
                                     .equatable()
                                     .id(item.id)
                                     .background(
@@ -112,8 +141,10 @@ public struct HistoryTimelineView: View {
                     if scrollOnSelection && shouldScroll(to: id) {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) }
                     }
+                    updateAnchorRect()
                 }
             }
+            .onChange(of: itemFrames) { _ in updateAnchorRect() }
         }
     }
     private func shouldScroll(to id: UUID) -> Bool {
@@ -131,8 +162,16 @@ public struct HistoryTimelineView: View {
     }
     private func title(for item: ClipItem) -> String { item.text ?? item.contentRef?.lastPathComponent ?? "Item" }
     private var layoutStyle: HistoryLayoutStyle { HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal }
-    private var gridCardWidth: CGFloat { 240 }
-    private var gridColumns: [GridItem] { [GridItem(.adaptive(minimum: gridCardWidth, maximum: gridCardWidth), spacing: 12)] }
+    private var cardWidth: CGFloat { 240 }
+    private var gridColumns: [GridItem] { [GridItem(.adaptive(minimum: cardWidth, maximum: cardWidth), spacing: 12)] }
+    public var onSelectedItemFrame: ((CGRect?) -> Void)?
+    private func updateAnchorRect() {
+        if let id = selectedItemID {
+            onSelectedItemFrame?(itemFrames[id])
+        } else {
+            onSelectedItemFrame?(nil)
+        }
+    }
 }
 
 private struct ItemCardView: View, Equatable {

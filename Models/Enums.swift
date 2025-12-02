@@ -12,6 +12,7 @@ public enum ClipType: String, Codable, CaseIterable {
 public enum HistoryLayoutStyle: String, Codable, CaseIterable {
     case horizontal
     case grid
+    case vertical
 }
 
 // 搜索过滤条件：按类型与来源应用过滤

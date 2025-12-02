@@ -19,6 +19,7 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
     private var searchOverlayRect: CGRect?
     private var inputBuffer: String = ""
     public var previewService: PreviewService?
+    private var previewAnchorRect: NSRect?
     public var onQueryUpdate: ((String) -> Void)?
     public var onSearchOverlayVisibleChanged: ((Bool) -> Void)?
     public var onShowSearchPopover: ((String?) -> Void)?
@@ -39,18 +40,58 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         }
     }
     public func updateSearchOverlayRect(_ rect: CGRect) { searchOverlayRect = rect }
+    public func updatePreviewAnchorRect(_ rect: NSRect?) { previewAnchorRect = rect }
     public override init() { super.init() }
     private func targetWidth() -> CGFloat {
         let s = activeScreen() ?? NSScreen.main
         guard let screen = s else { return 960 }
-        return min(screen.visibleFrame.width * 0.8, 2048)
+        let raw = UserDefaults.standard.string(forKey: "historyLayoutStyle") ?? "horizontal"
+        let style = HistoryLayoutStyle(rawValue: raw) ?? .horizontal
+        switch style {
+        case .horizontal:
+            return min(screen.visibleFrame.width * 0.9, 2048)
+        case .vertical:
+            return 460
+        case .grid:
+            return min(screen.visibleFrame.width * 0.8, 2048)
+        }
     }
     private func targetHeight() -> CGFloat {
         let raw = UserDefaults.standard.string(forKey: "historyLayoutStyle") ?? "horizontal"
         let style = HistoryLayoutStyle(rawValue: raw) ?? .horizontal
         switch style {
-        case .horizontal: return 280
-        case .grid: return 720
+        case .horizontal:
+            return 260
+        case .grid:
+            let s = activeScreen() ?? NSScreen.main
+            let h = s?.visibleFrame.height ?? 720
+            return min(h * 0.8, 2048)
+        case .vertical:
+            let s = activeScreen() ?? NSScreen.main
+            let h = s?.visibleFrame.height ?? 720
+            return min(h * 0.9, 2048)
+        }
+    }
+    private func targetOrigin(for size: NSSize) -> NSPoint {
+        let s = activeScreen() ?? NSScreen.main
+        guard let screen = s else { return NSPoint(x: 0, y: 0) }
+        let f = screen.visibleFrame
+        let raw = UserDefaults.standard.string(forKey: "historyLayoutStyle") ?? "horizontal"
+        let style = HistoryLayoutStyle(rawValue: raw) ?? .horizontal
+        switch style {
+        case .horizontal:
+            let x = f.midX - (size.width / 2)
+            let baseY = f.midY - (size.height / 2)
+            let up = min(120, (f.height - size.height) / 4)
+            return NSPoint(x: x, y: baseY + up)
+        case .vertical:
+            let x = f.minX + f.height * 0.2
+            let y = f.midY - (size.height / 2)
+            return NSPoint(x: x, y: y)
+        case .grid:
+            let x = f.midX - (size.width / 2)
+            let y = f.midY - (size.height / 2)
+            return NSPoint(x: x, y: y)
         }
     }
     // 设置 SwiftUI 根视图
@@ -96,11 +137,12 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
             let width = targetWidth()
             window?.setContentSize(NSSize(width: width, height: targetHeight()))
         }
-        positionCenter()
+        let size = NSSize(width: targetWidth(), height: targetHeight())
+        let origin = targetOrigin(for: size)
         if let w = window {
             previousFrontApp = NSWorkspace.shared.frontmostApplication
             NSApp.activate(ignoringOtherApps: true)
-            let finalFrame = w.frame
+            let finalFrame = NSRect(origin: origin, size: size)
             let scale: CGFloat = 0.96
             let initSize = NSSize(width: finalFrame.size.width * scale, height: finalFrame.size.height * scale)
             var initOrigin = finalFrame.origin
@@ -174,11 +216,11 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
     }
     public func updateLayoutHeight(animated: Bool = true) {
         guard let w = window else { return }
+        let newW = targetWidth()
         let newH = targetHeight()
-        var f = w.frame
-        let delta = f.height - newH
-        f.size.height = newH
-        f.origin.y += delta / 2
+        let newSize = NSSize(width: newW, height: newH)
+        let newOrigin = targetOrigin(for: newSize)
+        var f = NSRect(origin: newOrigin, size: newSize)
         if animated {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.12
@@ -428,6 +470,23 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         }
     }
     public func showPreview(_ item: ClipItem) {
-        previewService?.show(item)
+        let raw = UserDefaults.standard.string(forKey: "historyLayoutStyle") ?? "horizontal"
+        let style = HistoryLayoutStyle(rawValue: raw) ?? .horizontal
+        switch style {
+        case .horizontal:
+            if let wf = window?.frame {
+                previewService?.show(item, anchorRect: wf, placement: .bottomCenter)
+            } else {
+                previewService?.show(item, placement: .bottomCenter)
+            }
+        case .vertical:
+            if let wf = window?.frame {
+                previewService?.show(item, anchorRect: wf, placement: .rightCenter)
+            } else {
+                previewService?.show(item, placement: .rightCenter)
+            }
+        case .grid:
+            previewService?.show(item, placement: .centerOnScreen)
+        }
     }
 }

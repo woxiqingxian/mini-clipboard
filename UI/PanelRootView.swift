@@ -68,9 +68,25 @@ struct PanelRootView: View {
                         .frame(width: 220)
                     }
                     Button(action: {
-                        layoutStyleRaw = ((HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal) == .horizontal ? HistoryLayoutStyle.grid.rawValue : HistoryLayoutStyle.horizontal.rawValue)
+                        let current = HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal
+                        let next: HistoryLayoutStyle = {
+                            switch current {
+                            case .horizontal: return .grid
+                            case .grid: return .vertical
+                            case .vertical: return .horizontal
+                            }
+                        }()
+                        layoutStyleRaw = next.rawValue
                     }) {
-                        Image(systemName: ((HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal) == .horizontal) ? "square.grid.2x2" : "list.bullet.rectangle")
+                        let current = HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal
+                        let nextIcon: String = {
+                            switch current {
+                            case .horizontal: return "square.grid.2x2"
+                            case .grid: return "list.bullet.rectangle.portrait"
+                            case .vertical: return "list.bullet.rectangle"
+                            }
+                        }()
+                        Image(systemName: nextIcon)
                             .font(.system(size: 12, weight: .bold))
                     }
                     .buttonStyle(.borderless)
@@ -260,7 +276,17 @@ struct PanelRootView: View {
                         }
                 )
                 VStack(spacing: 0) {
-                    HistoryTimelineView(items: controller.items, boards: controller.boards, defaultBoardID: controller.store.defaultBoardID, currentBoardID: controller.selectedBoardID, onPaste: { item, plain in controller.pasteItem(item, plain: plain) }, onAddToBoard: { item, bid in controller.addToBoard(item, bid) }, onDelete: { item in controller.deleteItem(item) }, selectedItemID: controller.selectedItemID, onSelect: { item in controller.selectItem(item) }, onRename: { item, name in controller.renameItem(item, name: name) }, scrollOnSelection: controller.selectionByKeyboard)
+                    HistoryTimelineView(items: controller.items, boards: controller.boards, defaultBoardID: controller.store.defaultBoardID, currentBoardID: controller.selectedBoardID, onPaste: { item, plain in controller.pasteItem(item, plain: plain) }, onAddToBoard: { item, bid in controller.addToBoard(item, bid) }, onDelete: { item in controller.deleteItem(item) }, selectedItemID: controller.selectedItemID, onSelect: { item in controller.selectItem(item) }, onRename: { item, name in controller.renameItem(item, name: name) }, scrollOnSelection: controller.selectionByKeyboard, onSelectedItemFrame: { rect in
+                        if let rect, let win = NSApp.keyWindow ?? NSApp.windows.first {
+                            let windowHeight = win.contentView?.bounds.height ?? win.frame.size.height
+                            let cocoaY = windowHeight - (rect.origin.y + rect.size.height)
+                            let nsRect = NSRect(x: rect.origin.x, y: cocoaY, width: rect.size.width, height: rect.size.height)
+                            let screenRect = win.convertToScreen(nsRect)
+                            controller.panel.updatePreviewAnchorRect(screenRect)
+                        } else {
+                            controller.panel.updatePreviewAnchorRect(nil)
+                        }
+                    })
                         .animation(.easeInOut(duration: 0.35), value: controller.items)
                         .animation(.easeInOut(duration: 0.35), value: layoutStyleRaw)
                 }
@@ -269,10 +295,19 @@ struct PanelRootView: View {
             }
         }
         .background(AppTheme.panelBackground)
+        .coordinateSpace(name: "PanelWindow")
         .onAppear { controller.sidebarWidth = sidebarWidth }
         .onChange(of: sidebarWidth) { w in controller.sidebarWidth = w }
         .onChange(of: layoutStyleRaw) { _ in controller.panel.updateLayoutHeight(animated: true) }
-        .frame(minWidth: 880, minHeight: 290)
+        .frame(minWidth: minWidthForLayout, minHeight: 290)
+    }
+    private var layoutStyle: HistoryLayoutStyle { HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal }
+    private var minWidthForLayout: CGFloat {
+        switch layoutStyle {
+        case .horizontal: return 880
+        case .grid: return 880
+        case .vertical: return 460
+        }
     }
     private func boardDisplayName(_ b: Pinboard) -> String {
         if b.id == controller.store.defaultBoardID && b.name == "剪贴板" { return L("boards.default.displayName") }
@@ -280,8 +315,10 @@ struct PanelRootView: View {
     }
     private func reportSearchFrame(_ geo: GeometryProxy) {
         if let win = NSApp.keyWindow ?? NSApp.windows.first {
-            let local = geo.frame(in: .global)
-            let nsRect = NSRect(x: local.origin.x, y: local.origin.y, width: local.size.width, height: local.size.height)
+            let local = geo.frame(in: .named("PanelWindow"))
+            let windowHeight = win.contentView?.bounds.height ?? win.frame.size.height
+            let cocoaY = windowHeight - (local.origin.y + local.size.height)
+            let nsRect = NSRect(x: local.origin.x, y: cocoaY, width: local.size.width, height: local.size.height)
             let screenRect = win.convertToScreen(nsRect)
             controller.panel.updateSearchOverlayRect(screenRect)
         }
@@ -310,4 +347,3 @@ struct PanelRootView: View {
     }
 }
 // 搜索弹窗视图已移除，统一由顶部按钮弹出
-

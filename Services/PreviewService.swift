@@ -6,8 +6,9 @@ public final class PreviewService: NSObject {
     private var panel: NSPanel?
     private var hosting: NSHostingView<AnyView>?
     private var effectView: NSVisualEffectView?
-    public func show(_ item: ClipItem) {
-        let size = NSSize(width: 560, height: 440)
+    public enum PreviewPlacement { case centerOnScreen, rightOf, below, centerOverRect, bottomCenter, rightCenter }
+    public func show(_ item: ClipItem, anchorRect: NSRect? = nil, placement: PreviewPlacement = .centerOnScreen) {
+        let size = NSSize(width: 560, height: 400)
         if panel == nil {
             let w = NSPanel(contentRect: NSRect(x: 0, y: 0, width: size.width, height: size.height), styleMask: [.titled, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
             w.isReleasedWhenClosed = false
@@ -55,9 +56,75 @@ public final class PreviewService: NSObject {
         }
         if let s = activeScreen() ?? NSScreen.main {
             let f = s.visibleFrame
-            let x = f.midX - (size.width / 2)
-            let y = f.midY - (size.height / 2)
-            let finalFrame = NSRect(x: x, y: y, width: size.width, height: size.height)
+            let finalFrame: NSRect = {
+                switch placement {
+                case .rightOf:
+                    if let anchor = anchorRect {
+                        var x = anchor.maxX + 12
+                        var y = anchor.midY - (size.height / 2)
+                        if x + size.width > f.maxX { x = f.maxX - size.width - 8 }
+                        if y < f.minY { y = f.minY + 8 }
+                        if y + size.height > f.maxY { y = f.maxY - size.height - 8 }
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                    let cx = f.midX - (size.width / 2)
+                    let cy = f.midY - (size.height / 2)
+                    return NSRect(x: cx, y: cy, width: size.width, height: size.height)
+                case .below:
+                    if let anchor = anchorRect {
+                        var x = anchor.midX - (size.width / 2)
+                        var y = anchor.minY - size.height - 12
+                        if x < f.minX + 8 { x = f.minX + 8 }
+                        if x + size.width > f.maxX { x = f.maxX - size.width - 8 }
+                        if y < f.minY { y = f.minY + 8 }
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                    let cx = f.midX - (size.width / 2)
+                    let cy = f.midY - (size.height / 2)
+                    return NSRect(x: cx, y: cy, width: size.width, height: size.height)
+                case .centerOverRect:
+                    if let anchor = anchorRect {
+                        let x = anchor.midX - (size.width / 2)
+                        let y = anchor.midY - (size.height / 2)
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                    let cx = f.midX - (size.width / 2)
+                    let cy = f.midY - (size.height / 2)
+                    return NSRect(x: cx, y: cy, width: size.width, height: size.height)
+                case .centerOnScreen:
+                    let x = f.midX - (size.width / 2)
+                    let y = f.midY - (size.height / 2)
+                    return NSRect(x: x, y: y, width: size.width, height: size.height)
+                case .bottomCenter:
+                    let margin: CGFloat = 120
+                    if let anchor = anchorRect {
+                        var x = anchor.midX - (size.width / 2)
+                        var y = anchor.minY - size.height - 12
+                        if x < f.minX + 8 { x = f.minX + 8 }
+                        if x + size.width > f.maxX - 8 { x = f.maxX - size.width - 8 }
+                        if y < f.minY + 8 { y = f.minY + 8 }
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    } else {
+                        let x = f.midX - (size.width / 2)
+                        let y = f.minY + margin
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                case .rightCenter:
+                    let margin: CGFloat = 24
+                    if let anchor = anchorRect {
+                        var x = anchor.maxX + margin
+                        var y = anchor.midY - (size.height / 2)
+                        if x + size.width > f.maxX - 8 { x = f.maxX - size.width - 8 }
+                        if y < f.minY + 8 { y = f.minY + 8 }
+                        if y + size.height > f.maxY - 8 { y = f.maxY - size.height - 8 }
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    } else {
+                        let x = f.maxX - size.width - margin
+                        let y = f.midY - (size.height / 2)
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                }
+            }()
             let scale: CGFloat = 0.96
             let initSize = NSSize(width: finalFrame.size.width * scale, height: finalFrame.size.height * scale)
             var initOrigin = finalFrame.origin
@@ -133,7 +200,7 @@ private struct PreviewContentView: View {
             content
         }
         .padding(14)
-        .background(Color.clear)
+        .background(AppTheme.panelBackground)
         .id(item.id)
         .onAppear { usePrettyJSON = false; useTimeConversion = false }
         .onChange(of: item.id) { _ in usePrettyJSON = false; useTimeConversion = false }

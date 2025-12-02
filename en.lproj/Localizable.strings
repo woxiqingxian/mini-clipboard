@@ -4,8 +4,9 @@
 "settings.maxItems" = "Max Items";
 "settings.appLanguage" = "App Language";
 "settings.historyLayout" = "History Layout";
-"settings.historyLayout.horizontal" = "Horizontal";
+"settings.historyLayout.horizontal" = "Horizontal List";
 "settings.historyLayout.grid" = "Grid";
+"settings.historyLayout.vertical" = "Vertical List";
 "shortcuts.title" = "Shortcuts";
 "shortcuts.panel" = "Panel";
 "about.title" = "About";
