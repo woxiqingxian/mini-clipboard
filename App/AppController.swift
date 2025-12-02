@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import Combine
 
 final class AppController: ObservableObject {
@@ -15,6 +16,9 @@ final class AppController: ObservableObject {
     @Published var selectedBoardID: UUID?
     @Published var selectedItemID: UUID?
     @Published var selectionByKeyboard: Bool = false
+    @Published var selectedIDs: Set<UUID> = []
+    @Published var selectionMode: Bool = false
+    private var selectionAnchorID: UUID?
     @Published var searchPopoverVisible: Bool = false
     @Published var searchBarWidth: CGFloat = 0
     @Published var sidebarWidth: CGFloat = 180
@@ -126,6 +130,121 @@ final class AppController: ObservableObject {
         panel.hide()
         let msg = plain ? L("toast.copiedPlain") : L("toast.copied")
         panel.showToast(msg)
+    }
+    func copySelectedPlainText() {
+        let ids = Array(selectedIDs)
+        guard !ids.isEmpty else { return }
+        let itemsToCopy = ids.compactMap { id in items.first(where: { $0.id == id }) }
+        let parts: [String] = itemsToCopy.map { plainText(of: $0) }
+        let joined = parts.joined(separator: "\n\n")
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(joined, forType: .string)
+        panel.showToast(L("toast.copied"))
+        clearSelection()
+    }
+    private func plainText(of item: ClipItem) -> String {
+        switch item.type {
+        case .text:
+            if let rich = item.metadata["rich"] {
+                if rich == "rtf" {
+                    if item.metadata["plainSource"] == "pb" { return item.text ?? "" }
+                    if let u = item.contentRef, let a = try? NSAttributedString(url: u, options: [:], documentAttributes: nil) { return a.string }
+                    return item.text ?? ""
+                } else if rich == "html" {
+                    if let u = item.contentRef, let d = try? Data(contentsOf: u), let a = try? NSAttributedString(data: d, options: [.documentType: NSAttributedString.DocumentType.html], documentAttributes: nil) { return a.string }
+                    return item.text ?? ""
+                }
+            }
+            if let u = item.contentRef {
+                if let a = try? NSAttributedString(url: u, options: [:], documentAttributes: nil) { return a.string }
+                if let s = try? String(contentsOf: u) { return s }
+            }
+            return item.text ?? ""
+        case .link:
+            if let u = item.contentRef { return u.absoluteString }
+            return item.metadata["url"] ?? (item.text ?? "")
+        case .image:
+            return item.text ?? ""
+        case .file:
+            return item.text ?? (item.contentRef?.lastPathComponent ?? "")
+        case .color:
+            return item.metadata["colorHex"] ?? (item.text ?? "")
+        }
+    }
+    func deleteSelected() {
+        let ids = Array(selectedIDs)
+        guard !ids.isEmpty else { return }
+        ids.forEach { id in try? store.delete(id) }
+        if let sel = selectedItemID, selectedIDs.contains(sel) { selectedItemID = nil }
+        selectedIDs.removeAll()
+        selectionMode = false
+        refresh()
+        panel.showToast(L("toast.deleted"))
+    }
+    func addSelectedToBoard(_ boardID: UUID) {
+        let ids = Array(selectedIDs)
+        guard !ids.isEmpty else { return }
+        ids.forEach { id in try? store.pin(id, to: boardID) }
+        refresh()
+        panel.showToast(L("toast.addedToBoard"))
+        clearSelection()
+    }
+    func clearSelection() {
+        selectedIDs.removeAll()
+        selectionMode = false
+    }
+    func toggleSelectionMode() {
+        selectionMode.toggle()
+        if !selectionMode { selectedIDs.removeAll() }
+    }
+    func onItemTapped(_ item: ClipItem) {
+        let flags = NSApp.currentEvent?.modifierFlags ?? []
+        if selectionMode {
+            if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
+            selectionAnchorID = item.id
+            return
+        }
+        if flags.contains(.command) {
+            if selectedIDs.contains(item.id) {
+                selectedIDs.remove(item.id)
+            } else {
+                selectedIDs.insert(item.id)
+            }
+            selectionAnchorID = item.id
+            return
+        }
+        if flags.contains(.shift) {
+            guard let anchor = selectionAnchorID ?? selectedItemID, let aIdx = items.firstIndex(where: { $0.id == anchor }), let bIdx = items.firstIndex(where: { $0.id == item.id }) else {
+                selectedIDs.insert(item.id)
+                selectionAnchorID = item.id
+                return
+            }
+            let lo = min(aIdx, bIdx)
+            let hi = max(aIdx, bIdx)
+            let rangeIDs = Set(items[lo...hi].map { $0.id })
+            selectedIDs.formUnion(rangeIDs)
+            return
+        }
+        selectionByKeyboard = false
+        selectedItemID = item.id
+        selectedIDs.removeAll()
+        selectionAnchorID = item.id
+    }
+
+    func confirmDeleteSelected() {
+        let count = selectedIDs.count
+        guard count > 0 else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "确定删除所选项？"
+        alert.informativeText = "这将删除 \(count) 项，操作不可撤销。"
+        alert.addButton(withTitle: "删除")
+        alert.addButton(withTitle: "取消")
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            deleteSelected()
+        }
     }
     func addToBoard(_ item: ClipItem, _ boardID: UUID) {
         try? store.pin(item.id, to: boardID)

@@ -35,7 +35,7 @@ public struct SettingsView: View {
                             .font(.system(size: 13))
                             .frame(width: 80, alignment: .leading)
                         Spacer()
-                        Stepper(value: $settings.historyMaxItems, in: 50...5000, step: 50) {
+                        Stepper(value: $settings.historyMaxItems, in: 50...500, step: 50) {
                             Text("\(settings.historyMaxItems)")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
