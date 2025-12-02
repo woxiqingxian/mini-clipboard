@@ -6,7 +6,7 @@ public final class PreviewService: NSObject {
     private var panel: NSPanel?
     private var hosting: NSHostingView<AnyView>?
     private var effectView: NSVisualEffectView?
-    public enum PreviewPlacement { case centerOnScreen, rightOf, below, centerOverRect, bottomCenter, rightCenter }
+    public enum PreviewPlacement { case centerOnScreen, rightOf, below, centerOverRect, bottomCenter, rightCenter, topCenter, leftCenter }
     public func show(_ item: ClipItem, anchorRect: NSRect? = nil, placement: PreviewPlacement = .centerOnScreen) {
         let size = NSSize(width: 560, height: 400)
         if panel == nil {
@@ -120,6 +120,34 @@ public final class PreviewService: NSObject {
                         return NSRect(x: x, y: y, width: size.width, height: size.height)
                     } else {
                         let x = f.maxX - size.width - margin
+                        let y = f.midY - (size.height / 2)
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                case .topCenter:
+                    let margin: CGFloat = 120
+                    if let anchor = anchorRect {
+                        var x = anchor.midX - (size.width / 2)
+                        var y = anchor.maxY + 12
+                        if x < f.minX + 8 { x = f.minX + 8 }
+                        if x + size.width > f.maxX - 8 { x = f.maxX - size.width - 8 }
+                        if y + size.height > f.maxY - 8 { y = f.maxY - size.height - 8 }
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    } else {
+                        let x = f.midX - (size.width / 2)
+                        let y = f.maxY - margin - size.height
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    }
+                case .leftCenter:
+                    let margin: CGFloat = 24
+                    if let anchor = anchorRect {
+                        var x = anchor.minX - margin - size.width
+                        var y = anchor.midY - (size.height / 2)
+                        if x < f.minX + 8 { x = f.minX + 8 }
+                        if y < f.minY + 8 { y = f.minY + 8 }
+                        if y + size.height > f.maxY - 8 { y = f.maxY - size.height - 8 }
+                        return NSRect(x: x, y: y, width: size.width, height: size.height)
+                    } else {
+                        let x = f.minX + margin
                         let y = f.midY - (size.height / 2)
                         return NSRect(x: x, y: y, width: size.width, height: size.height)
                     }

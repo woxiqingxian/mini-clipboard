@@ -17,6 +17,8 @@ struct PanelRootView: View {
     @State private var renameInput: String = ""
     @State private var colorInput: String = ""
     @AppStorage("historyLayoutStyle") private var layoutStyleRaw: String = "horizontal"
+    @AppStorage("panelPositionVertical") private var panelPositionVertical: Double = 0
+    @AppStorage("panelPositionHorizontal") private var panelPositionHorizontal: Double = 0
     var body: some View {
         ZStack(alignment: .top) {
             HStack(spacing: 0) {
@@ -299,6 +301,8 @@ struct PanelRootView: View {
         .onAppear { controller.sidebarWidth = sidebarWidth }
         .onChange(of: sidebarWidth) { w in controller.sidebarWidth = w }
         .onChange(of: layoutStyleRaw) { _ in controller.panel.updateLayoutHeight(animated: true) }
+        .onChange(of: panelPositionVertical) { _ in controller.panel.updateLayoutHeight(animated: true) }
+        .onChange(of: panelPositionHorizontal) { _ in controller.panel.updateLayoutHeight(animated: true) }
         .frame(minWidth: minWidthForLayout, minHeight: 290)
     }
     private var layoutStyle: HistoryLayoutStyle { HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal }

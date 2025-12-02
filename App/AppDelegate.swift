@@ -94,30 +94,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func openPanel() { controller?.panel.show() }
     @objc func openSettings() {
         NSApp.activate(ignoringOtherApps: true)
-        let handled = NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        if !handled {
-            if preferencesWindow == nil {
-                let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 460), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-                w.title = L("window.settings.title")
-                w.isReleasedWhenClosed = false
-                w.delegate = self
-                let hosting = NSHostingView(rootView: SettingsView())
-                hosting.translatesAutoresizingMaskIntoConstraints = false
-                let content = NSView()
-                content.translatesAutoresizingMaskIntoConstraints = false
-                w.contentView = content
-                content.addSubview(hosting)
-                NSLayoutConstraint.activate([
-                    hosting.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-                    hosting.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-                    hosting.topAnchor.constraint(equalTo: content.topAnchor),
-                    hosting.bottomAnchor.constraint(equalTo: content.bottomAnchor)
-                ])
-                preferencesWindow = w
-            }
-            preferencesWindow?.center()
-            preferencesWindow?.makeKeyAndOrderFront(nil)
+        if preferencesWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 460), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+            w.title = L("window.settings.title")
+            w.isReleasedWhenClosed = false
+            w.delegate = self
+            w.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
+            let hosting = NSHostingView(rootView: SettingsView())
+            hosting.translatesAutoresizingMaskIntoConstraints = false
+            let content = NSView()
+            content.translatesAutoresizingMaskIntoConstraints = false
+            w.contentView = content
+            content.addSubview(hosting)
+            NSLayoutConstraint.activate([
+                hosting.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+                hosting.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+                hosting.topAnchor.constraint(equalTo: content.topAnchor),
+                hosting.bottomAnchor.constraint(equalTo: content.bottomAnchor)
+            ])
+            preferencesWindow = w
         }
+        preferencesWindow?.center()
+        preferencesWindow?.makeKeyAndOrderFront(nil)
     }
 
     @objc func quitApp() { NSApp.terminate(nil) }

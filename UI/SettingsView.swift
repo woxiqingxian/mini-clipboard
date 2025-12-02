@@ -4,6 +4,8 @@ public struct SettingsView: View {
     @State private var settings = AppSettings()
     @AppStorage("historyLayoutStyle") private var layoutStyleRaw: String = "horizontal"
     @AppStorage("appLanguage") private var appLanguage: String = "zh-Hans"
+    @AppStorage("panelPositionVertical") private var panelPositionVertical: Double = 0
+    @AppStorage("panelPositionHorizontal") private var panelPositionHorizontal: Double = 0
     private let settingsStore = SettingsStore()
     public init() {}
     public var body: some View {
@@ -68,6 +70,40 @@ public struct SettingsView: View {
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 160)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    HStack {
+                        Text(L("settings.panelPosition"))
+                            .font(.system(size: 13))
+                            .frame(width: 80, alignment: .leading)
+                        Spacer()
+                        Group {
+                            switch HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal {
+                            case .grid:
+                                Text(L("settings.panelPosition.unavailableForGrid"))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            case .horizontal:
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L("settings.panelPosition.vertical"))
+                                        .font(.system(size: 12))
+                                    Slider(value: $panelPositionVertical, in: -100...100, step: 1) {
+                                        Text("")
+                                    }
+                                    .frame(width: 160)
+                                }
+                            case .vertical:
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L("settings.panelPosition.horizontal"))
+                                        .font(.system(size: 12))
+                                    Slider(value: $panelPositionHorizontal, in: -100...100, step: 1) {
+                                        Text("")
+                                    }
+                                    .frame(width: 160)
+                                }
+                            }
+                        }
                     }
                     .padding(.vertical, 6)
                     .padding(.horizontal, 8)
@@ -142,6 +178,8 @@ public struct SettingsView: View {
             HotkeyService.shared?.registerQuickPasteSlots()
             HotkeyService.shared?.registerStackToggle()
         }
+        .onChange(of: panelPositionVertical) { _ in }
+        .onChange(of: panelPositionHorizontal) { _ in }
     }
     
 }

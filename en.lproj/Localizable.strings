@@ -7,6 +7,10 @@
 "settings.historyLayout.horizontal" = "Horizontal List";
 "settings.historyLayout.grid" = "Grid";
 "settings.historyLayout.vertical" = "Vertical List";
+"settings.panelPosition" = "Panel Position";
+"settings.panelPosition.vertical" = "Vertical Position";
+"settings.panelPosition.horizontal" = "Horizontal Position";
+"settings.panelPosition.unavailableForGrid" = "Not adjustable in Grid layout";
 "shortcuts.title" = "Shortcuts";
 "shortcuts.panel" = "Panel";
 "about.title" = "About";

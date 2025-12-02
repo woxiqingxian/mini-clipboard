@@ -78,15 +78,22 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         let f = screen.visibleFrame
         let raw = UserDefaults.standard.string(forKey: "historyLayoutStyle") ?? "horizontal"
         let style = HistoryLayoutStyle(rawValue: raw) ?? .horizontal
+        let vPercent = UserDefaults.standard.object(forKey: "panelPositionVertical") as? Double ?? 0
+        let hPercent = UserDefaults.standard.object(forKey: "panelPositionHorizontal") as? Double ?? 0
+        let vNorm = max(-100, min(100, vPercent)) / 100.0
+        let hNorm = max(-100, min(100, hPercent)) / 100.0
         switch style {
         case .horizontal:
             let x = f.midX - (size.width / 2)
             let baseY = f.midY - (size.height / 2)
-            let up = min(120, (f.height - size.height) / 4)
-            return NSPoint(x: x, y: baseY + up)
+            let travelY = (f.height - size.height) / 2
+            let y = baseY + (travelY * vNorm)
+            return NSPoint(x: x, y: y)
         case .vertical:
-            let x = f.minX + f.height * 0.2
             let y = f.midY - (size.height / 2)
+            let baseX = f.midX - (size.width / 2)
+            let travelX = (f.width - size.width) / 2
+            let x = baseX + (travelX * hNorm)
             return NSPoint(x: x, y: y)
         case .grid:
             let x = f.midX - (size.width / 2)
@@ -475,15 +482,29 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
         switch style {
         case .horizontal:
             if let wf = window?.frame {
-                previewService?.show(item, anchorRect: wf, placement: .bottomCenter)
+                let s = activeScreen() ?? NSScreen.main
+                if let screen = s {
+                    let f = screen.visibleFrame
+                    let placement: PreviewService.PreviewPlacement = (wf.midY < f.midY) ? .topCenter : .bottomCenter
+                    previewService?.show(item, anchorRect: wf, placement: placement)
+                } else {
+                    previewService?.show(item, anchorRect: wf, placement: .bottomCenter)
+                }
             } else {
-                previewService?.show(item, placement: .bottomCenter)
+                previewService?.show(item, placement: .centerOnScreen)
             }
         case .vertical:
             if let wf = window?.frame {
-                previewService?.show(item, anchorRect: wf, placement: .rightCenter)
+                let s = activeScreen() ?? NSScreen.main
+                if let screen = s {
+                    let f = screen.visibleFrame
+                    let placement: PreviewService.PreviewPlacement = (wf.midX < f.midX) ? .rightCenter : .leftCenter
+                    previewService?.show(item, anchorRect: wf, placement: placement)
+                } else {
+                    previewService?.show(item, anchorRect: wf, placement: .rightCenter)
+                }
             } else {
-                previewService?.show(item, placement: .rightCenter)
+                previewService?.show(item, placement: .centerOnScreen)
             }
         case .grid:
             previewService?.show(item, placement: .centerOnScreen)
