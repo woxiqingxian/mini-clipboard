@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 public final class PreviewService: NSObject {
     private var panel: NSPanel?
@@ -273,12 +274,48 @@ private struct PreviewContentView: View {
             }
         case .file:
             let u = item.contentRef
-            let icon: NSImage? = { if let p = u?.path { return NSWorkspace.shared.icon(forFile: p) } else { return nil } }()
-            VStack(spacing: 12) {
-                if let i = icon { Image(nsImage: i).resizable().aspectRatio(contentMode: .fit).frame(width: 96, height: 96) }
-                Text(item.text ?? u?.lastPathComponent ?? "") .font(.system(size: 13))
+            if let u = u {
+                let isImage: Bool = {
+                    let ext = u.pathExtension.lowercased()
+                    if !ext.isEmpty, let t = UTType(filenameExtension: ext) { return t.conforms(to: .image) }
+                    return false
+                }()
+                if isImage, let img = NSImage(contentsOf: u) {
+                    Image(nsImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    let p = u.path
+                    let icon = NSWorkspace.shared.icon(forFile: p)
+                    let attrs = (try? FileManager.default.attributesOfItem(atPath: p))
+                    let sizeVal = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+                    let sizeText = ByteCountFormatter.string(fromByteCount: sizeVal, countStyle: .file)
+                    let modText: String = {
+                        if let d = attrs?[.modificationDate] as? Date { return formatDate(d) }
+                        return ""
+                    }()
+                    VStack(spacing: 12) {
+                        Image(nsImage: icon).resizable().aspectRatio(contentMode: .fit).frame(width: 96, height: 96)
+                        Text(item.text ?? u.lastPathComponent) .font(.system(size: 13))
+                        if !sizeText.isEmpty || !modText.isEmpty {
+                            Text("大小 \(sizeText) · 修改 \(modText)")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(p)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            } else {
+                VStack(spacing: 12) {
+                    Text(item.text ?? "") .font(.system(size: 13))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .color:
             let hex = item.metadata["colorHex"] ?? ""
             let c = colorFromString(hex)

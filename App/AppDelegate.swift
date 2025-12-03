@@ -9,7 +9,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller = AppController()
         NSApp.setActivationPolicy(.accessory)
-        ensureAccessibilityPermission()
         setApplicationIconFromPublic()
         controller?.start()
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -60,21 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     private func ensureAccessibilityPermission() {
-        if AXIsProcessTrusted() { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if AXIsProcessTrusted() { return }
-            let alert = NSAlert()
-            alert.messageText = L("alert.accessibility.title")
-            alert.informativeText = L("alert.accessibility.message")
-            alert.addButton(withTitle: L("alert.accessibility.openSettings"))
-            alert.addButton(withTitle: L("alert.accessibility.later"))
-            let r = alert.runModal()
-            if r == .alertFirstButtonReturn {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-        }
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
+        if AXIsProcessTrustedWithOptions(options) { return }
     }
     private func setApplicationIconFromPublic() {
         let fm = FileManager.default
