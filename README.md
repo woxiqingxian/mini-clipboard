@@ -6,11 +6,11 @@
 
 ## 功能特性
 - 历史采集：自动捕获文本、链接、图片、文件、颜色等类型
-- 时间线浏览：横向列表与网格两种布局，可快速预览与重命名
+- 时间线浏览：横向列表、纵向列表、网格三种布局，可快速预览与重命名
 - 收藏分组：Pinboards 创建/重命名/颜色标记，历史与收藏独立
 - 直接粘贴：双击快速复制，写入系统剪贴板，支持纯文本粘贴
 - 搜索与过滤：关键词 + 类型/来源应用过滤，输入即搜
-- 设置与快捷键：历史保留周期、布局切换、快捷键映射
+- 设置与快捷键：历史保留周期、布局切换、快捷键映射、面板位置调节
 
 ## 按键
 - 面板：`⇧+⌘+P`（可设置修改）
@@ -24,6 +24,15 @@
 ![列表布局](docs/image/list_mode.png)
 查看演示视频：👇
 [![演示视频](docs/image/cover.png)](https://youtu.be/ID8JOoSwYC8)
+
+## 安装指南
+1. 从 [Releases](https://github.com/PGshen/mini-clipboard/releases) 下载最新版本的`.dmg`。
+2. 打开下载的文件，将 `Mini Clipboard.app` 拖入 `Applications` 文件夹。
+3. 首次安装时，需要开启允许已知开发者的应用。
+   - 打开“系统偏好设置” → “安全性与隐私” → “安全”
+   - 点击“已知开发者”，确认允许 `Mini Clipboard` 安装。
+4. 从“应用程序”文件夹启动 `Mini Clipboard`。
+![安装设置](docs/image/install_setting.png)
 
 ## 环境要求
 - macOS 12+（Apple Silicon 原生）
