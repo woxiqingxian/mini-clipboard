@@ -37,8 +37,33 @@ struct PanelRootView: View {
         }
         .background(AppTheme.panelBackground)
         .coordinateSpace(name: "PanelWindow")
-        .onAppear { controller.sidebarWidth = sidebarWidth }
-        .onChange(of: sidebarWidth) { w in controller.sidebarWidth = w }
+        .onAppear {
+            if sidebarCollapsed {
+                lastExpandedSidebarWidth = max(lastExpandedSidebarWidth, sidebarWidth)
+                sidebarWidth = collapsedSidebarWidth
+            }
+            controller.sidebarWidth = sidebarWidth
+            UserDefaults.standard.set(Double(sidebarWidth), forKey: "sidebarWidth")
+            UserDefaults.standard.set(Double(lastExpandedSidebarWidth), forKey: "lastExpandedSidebarWidth")
+        }
+        .onChange(of: sidebarWidth) { w in
+            controller.sidebarWidth = w
+            UserDefaults.standard.set(Double(w), forKey: "sidebarWidth")
+            controller.panel.updateLayoutHeight(animated: !isDragging)
+        }
+        .onChange(of: sidebarCollapsed) { c in
+            if c {
+                lastExpandedSidebarWidth = max(lastExpandedSidebarWidth, sidebarWidth)
+                sidebarWidth = collapsedSidebarWidth
+                controller.clearSelection()
+                UserDefaults.standard.set(Double(lastExpandedSidebarWidth), forKey: "lastExpandedSidebarWidth")
+            } else {
+                if sidebarWidth <= collapsedSidebarWidth + 1 {
+                    sidebarWidth = max(lastExpandedSidebarWidth, 180)
+                }
+                UserDefaults.standard.set(Double(lastExpandedSidebarWidth), forKey: "lastExpandedSidebarWidth")
+            }
+        }
         .onChange(of: layoutStyleRaw) { _ in controller.panel.updateLayoutHeight(animated: true) }
         .onChange(of: panelPositionVertical) { _ in controller.panel.updateLayoutHeight(animated: true) }
         .onChange(of: panelPositionHorizontal) { _ in controller.panel.updateLayoutHeight(animated: true) }
@@ -374,11 +399,7 @@ struct PanelRootView: View {
                     }
                     .buttonStyle(.borderless)
 
-                    Button(action: { controller.toggleSelectionMode() }) {
-                        Image(systemName: controller.selectionMode ? "checkmark.circle.fill" : "checkmark.circle")
-                            .font(.system(size: 14, weight: .bold))
-                    }
-                    .buttonStyle(.borderless)
+                    // 折叠模式不支持批量选择，隐藏选择模式按钮
 
                     Button(action: { controller.searchPopoverVisible = true }) {
                         Image(systemName: "magnifyingglass")
@@ -431,7 +452,6 @@ struct PanelRootView: View {
             }
         }
         .frame(width: sidebarWidth)
-        .animation(.easeInOut(duration: 0.25), value: sidebarWidth)
         .background(AppTheme.sidebarBackground)
     }
     private var separatorView: some View {
@@ -481,10 +501,8 @@ struct PanelRootView: View {
                         let nsRect = NSRect(x: rect.origin.x, y: cocoaY, width: rect.size.width, height: rect.size.height)
                         let screenRect = win.convertToScreen(nsRect)
                         controller.panel.updatePreviewAnchorRect(screenRect)
-                        updateBulkActionsOverlay()
                     } else {
                         controller.panel.updatePreviewAnchorRect(nil)
-                        updateBulkActionsOverlay()
                     }
                 })
                     .animation(.easeInOut(duration: 0.35), value: controller.items)
@@ -493,10 +511,7 @@ struct PanelRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.panelBackground)
-        .onAppear { updateBulkActionsOverlay() }
-        .onChange(of: controller.selectionMode) { _ in updateBulkActionsOverlay() }
-        .onChange(of: controller.selectedIDs.count) { _ in updateBulkActionsOverlay() }
-        .onChange(of: sidebarCollapsed) { _ in updateBulkActionsOverlay() }
+        
     }
     private var isPanelInLowerHalfOfScreen: Bool {
         if let w = NSApp.keyWindow, let s = w.screen ?? NSScreen.main {
@@ -505,99 +520,22 @@ struct PanelRootView: View {
         }
         return true
     }
-    private func updateBulkActionsOverlay() {
-        if sidebarCollapsed && (controller.selectionMode || !controller.selectedIDs.isEmpty) {
-            let v = AnyView(BulkActionsView(controller: controller, boards: controller.boards, defaultBoardID: controller.store.defaultBoardID))
-            controller.panel.showBulkActions(v, preferTop: isPanelInLowerHalfOfScreen)
-        } else {
-            controller.panel.hideBulkActions()
-        }
-    }
 
-    private struct BulkActionsView: View {
-        let controller: AppController
-        let boards: [Pinboard]
-        let defaultBoardID: UUID
-        var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("已选 \(controller.selectedIDs.count) 项")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Button { controller.copySelectedPlainText() } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.on.clipboard").foregroundColor(.blue)
-                        Text("复制为纯文本").font(.system(size: 12))
-                    }
-                }
-                .buttonStyle(.borderless)
-                Button { controller.copySelectedRichText() } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.richtext").foregroundColor(.purple)
-                        Text("复制为图文").font(.system(size: 12))
-                    }
-                }
-                .buttonStyle(.borderless)
-                Button { controller.confirmDeleteSelected() } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "trash").foregroundColor(.red)
-                        Text("删除所选").font(.system(size: 12))
-                    }
-                }
-                .buttonStyle(.borderless)
-                Menu {
-                    ForEach(boards.filter { $0.id != defaultBoardID }) { b in
-                        Button(action: { controller.addSelectedToBoard(b.id) }) {
-                            HStack(spacing: 8) {
-                                Circle().fill(colorFor(b)).frame(width: 8, height: 8)
-                                Text(b.name)
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "folder.badge.plus").foregroundColor(.indigo)
-                        Text("加入分组").font(.system(size: 12))
-                    }
-                }
-                .menuStyle(.borderlessButton)
-                Divider()
-                Button { controller.clearSelection() } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "xmark.circle").foregroundColor(.secondary)
-                        Text("清空选择").font(.system(size: 12))
-                    }
-                }
-                .buttonStyle(.borderless)
-            }
-            .padding(10)
-            .frame(maxWidth: 360, alignment: .topLeading)
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(color: AppTheme.shadowColor, radius: 4, x: 0, y: 2)
-        }
-        private func colorFor(_ b: Pinboard) -> Color {
-            guard let s = b.color?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !s.isEmpty else { return .accentColor }
-            switch s {
-            case "red": return .red
-            case "orange": return .orange
-            case "yellow": return .yellow
-            case "green": return .green
-            case "blue": return .blue
-            case "indigo": return .indigo
-            case "purple": return .purple
-            case "pink": return .pink
-            default:
-                let hex = s.hasPrefix("#") ? String(s.dropFirst()) : s
-                return Color(hex)
-            }
-        }
-    }
+    
     private var layoutStyle: HistoryLayoutStyle { HistoryLayoutStyle(rawValue: layoutStyleRaw) ?? .horizontal }
     private var minWidthForLayout: CGFloat {
         switch layoutStyle {
         case .horizontal: return 880
         case .grid: return 880
-        case .vertical: return 460
+        case .vertical:
+            let base: CGFloat = 460
+            if sidebarCollapsed {
+                let collapsedW: CGFloat = collapsedSidebarWidth
+                let delta = max(0, lastExpandedSidebarWidth - collapsedW)
+                let minW: CGFloat = 300
+                return max(minW, base - delta)
+            }
+            return base
         }
     }
     private func boardDisplayName(_ b: Pinboard) -> String {

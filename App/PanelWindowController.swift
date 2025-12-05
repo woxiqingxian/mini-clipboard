@@ -63,7 +63,16 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
             let w = screenW * CGFloat(pct)
             return max(minW, min(screenW, w))
         case .vertical:
-            return 460
+            let base: CGFloat = 460
+            let collapsed = UserDefaults.standard.bool(forKey: "sidebarCollapsed")
+            if collapsed {
+                let lastW = CGFloat(UserDefaults.standard.object(forKey: "lastExpandedSidebarWidth") as? Double ?? 180)
+                let collapsedW: CGFloat = 44
+                let delta = max(0, lastW - collapsedW)
+                let minW: CGFloat = 300
+                return max(minW, base - delta)
+            }
+            return base
         case .grid:
             let p = UserDefaults.standard.object(forKey: "panelGridWidthPercent") as? Double ?? 0
             let pctD: Double = {

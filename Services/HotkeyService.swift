@@ -19,8 +19,6 @@ public final class HotkeyService: HotkeyServiceProtocol {
                 let id = Int(hotKeyID.id)
                 if id == 1000 { HotkeyService.shared?.onShowPanel?() }
                 if id >= 2000 && id < 2010 { HotkeyService.shared?.onQuickPaste?(id - 1999, false) }
-                if id >= 3000 && id < 3010 { HotkeyService.shared?.onQuickPaste?(id - 2999, true) }
-                if id == 4000 { HotkeyService.shared?.onStackToggle?() }
             }
             return noErr
         }, 1, [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))], nil, nil)
@@ -46,17 +44,10 @@ public final class HotkeyService: HotkeyServiceProtocol {
             let id = EventHotKeyID(signature: OSType(UInt32(truncatingIfNeeded: 0x50415354)), id: UInt32(2000 + n - 1))
             RegisterEventHotKey(UInt32(kVK_ANSI_1 + n - 1), UInt32(cmdKey), id, GetApplicationEventTarget(), 0, &ref)
             quickRefs.append(ref)
-            var sref: EventHotKeyRef?
-            let sid = EventHotKeyID(signature: OSType(UInt32(truncatingIfNeeded: 0x50415354)), id: UInt32(3000 + n - 1))
-            RegisterEventHotKey(UInt32(kVK_ANSI_1 + n - 1), UInt32(cmdKey | shiftKey), sid, GetApplicationEventTarget(), 0, &sref)
-            quickRefs.append(sref)
         }
     }
     public func registerStackToggle() {
-        var ref: EventHotKeyRef?
-        let id = EventHotKeyID(signature: OSType(UInt32(truncatingIfNeeded: 0x50415354)), id: 4000)
-        RegisterEventHotKey(UInt32(kVK_ANSI_C), UInt32(cmdKey | shiftKey), id, GetApplicationEventTarget(), 0, &ref)
-        stackToggleRef = ref
+        stackToggleRef = nil
     }
     public func unregisterAll() {
         if let r = showPanelRef { UnregisterEventHotKey(r) }

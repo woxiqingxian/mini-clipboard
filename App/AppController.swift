@@ -110,19 +110,30 @@ final class AppController: ObservableObject {
         refresh()
     }
     func refresh() {
+        boards = store.listPinboards()
         if let bid = selectedBoardID, bid != store.defaultBoardID {
             var r = store.listItems(in: bid)
             if !filters.types.isEmpty { r = r.filter { filters.types.contains($0.type) } }
             if !filters.sourceApps.isEmpty { r = r.filter { filters.sourceApps.contains($0.sourceApp) } }
             if !query.isEmpty {
-                let qs = query.lowercased()
-                r = r.filter { ($0.text?.lowercased().contains(qs) ?? false) || ($0.metadata["url"]?.lowercased().contains(qs) ?? false) }
+                let qs = query
+                r = r.filter {
+                    ($0.text?.range(of: qs, options: [.caseInsensitive]) != nil) ||
+                    ($0.metadata["url"]?.range(of: qs, options: [.caseInsensitive]) != nil)
+                }
             }
             items = Array(r.prefix(200))
         } else {
-            items = search.search(query, filters: filters, limit: 200)
+            let currentQuery = query
+            let currentFilters = filters
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self = self else { return }
+                let result = self.search.search(currentQuery, filters: currentFilters, limit: 200)
+                DispatchQueue.main.async { [weak self] in
+                    self?.items = result
+                }
+            }
         }
-        boards = store.listPinboards()
     }
     func pasteItem(_ item: ClipItem, plain: Bool) {
         monitor.suppressCaptures(for: 1.0)

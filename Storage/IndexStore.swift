@@ -44,6 +44,10 @@ public final class IndexStore: IndexStoreProtocol {
             cleanupExpiredItems(days: s.historyRetentionDays)
             cleanupExceededItems(limit: s.historyMaxItems)
         }
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            _ = self.aggregatedText(item)
+        }
     }
     public func delete(_ id: UUID) throws {
         queue.sync {
@@ -64,7 +68,7 @@ public final class IndexStore: IndexStoreProtocol {
             // 来源应用过滤
             if !filters.sourceApps.isEmpty { r = r.filter { filters.sourceApps.contains($0.sourceApp) } }
             if let q = query, !q.isEmpty {
-                let qs = q.lowercased()
+                let qs = q
                 r = r.filter { itemMatches($0, qs: qs) }
             }
             let s = offset
@@ -80,7 +84,7 @@ public final class IndexStore: IndexStoreProtocol {
 
     private func matches(hay: String?, needle: String) -> Bool {
         guard let h = hay, !h.isEmpty else { return false }
-        return h.contains(needle)
+        return h.range(of: needle, options: [.caseInsensitive]) != nil
     }
     private func aggregatedText(_ item: ClipItem) -> String? {
         if let cached = contentCache[item.id] { return cached }
@@ -96,9 +100,16 @@ public final class IndexStore: IndexStoreProtocol {
             }
         }
         guard !parts.isEmpty else { return nil }
-        let agg = parts.joined(separator: " ").lowercased()
-        contentCache[item.id] = agg
-        return agg
+        let joined = parts.joined(separator: " ")
+        let capped = capForIndexing(joined)
+        contentCache[item.id] = capped
+        return capped
+    }
+    private let maxIndexTextLength: Int = 200_000
+    private func capForIndexing(_ s: String) -> String {
+        if s.count <= maxIndexTextLength { return s }
+        let idx = s.index(s.startIndex, offsetBy: maxIndexTextLength)
+        return String(s[..<idx])
     }
     public func pin(_ id: UUID, to boardID: UUID) throws {
         queue.sync {
