@@ -61,6 +61,13 @@
 "panel.clear" = "Clear";
 "panel.color.hexPlaceholder" = "Hex, e.g. #FF8800";
 
+"panel.selection.count" = "Selected %d items";
+"panel.selection.copyPlainText" = "Copy as plain text";
+"panel.selection.copyRichText" = "Copy as rich text";
+"panel.selection.deleteSelected" = "Delete selected";
+"panel.selection.addToBoard" = "Add to board";
+"panel.selection.clearSelection" = "Clear selection";
+
 "boards.default.displayName" = "Clipboard";
 "preview.json.format" = "Format JSON";
 "preview.json.unformat" = "Unformat";

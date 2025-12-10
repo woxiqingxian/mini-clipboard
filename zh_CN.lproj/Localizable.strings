@@ -61,6 +61,13 @@
 "panel.clear" = "清除";
 "panel.color.hexPlaceholder" = "十六进制，例如 #FF8800";
 
+"panel.selection.count" = "已选 %d 项";
+"panel.selection.copyPlainText" = "复制为纯文本";
+"panel.selection.copyRichText" = "复制为图文";
+"panel.selection.deleteSelected" = "删除所选";
+"panel.selection.addToBoard" = "加入分组";
+"panel.selection.clearSelection" = "清空选择";
+
 "boards.default.displayName" = "剪贴板";
 "preview.json.format" = "格式化 JSON";
 "preview.json.unformat" = "取消格式化";

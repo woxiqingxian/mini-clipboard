@@ -177,14 +177,14 @@ struct PanelRootView: View {
         ZStack(alignment: .topLeading) {
             if controller.selectionMode || !controller.selectedIDs.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("已选 \(controller.selectedIDs.count) 项")
+                    Text(String(format: L("panel.selection.count"), controller.selectedIDs.count))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                     Button { controller.copySelectedPlainText() } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "doc.on.clipboard")
                                 .foregroundColor(.blue)
-                            Text("复制为纯文本")
+                            Text(L("panel.selection.copyPlainText"))
                                 .font(.system(size: 12))
                         }
                     }
@@ -193,7 +193,7 @@ struct PanelRootView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "doc.richtext")
                                 .foregroundColor(.purple)
-                            Text("复制为图文")
+                            Text(L("panel.selection.copyRichText"))
                                 .font(.system(size: 12))
                         }
                     }
@@ -202,7 +202,7 @@ struct PanelRootView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "trash")
                                 .foregroundColor(.red)
-                            Text("删除所选")
+                            Text(L("panel.selection.deleteSelected"))
                                 .font(.system(size: 12))
                         }
                     }
@@ -222,7 +222,7 @@ struct PanelRootView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "folder.badge.plus")
                                 .foregroundColor(.indigo)
-                            Text("加入分组")
+                            Text(L("panel.selection.addToBoard"))
                                 .font(.system(size: 12))
                         }
                     }
@@ -232,7 +232,7 @@ struct PanelRootView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "xmark.circle")
                                 .foregroundColor(.secondary)
-                            Text("清空选择")
+                            Text(L("panel.selection.clearSelection"))
                                 .font(.system(size: 12))
                         }
                     }
