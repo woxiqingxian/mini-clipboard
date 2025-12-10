@@ -18,7 +18,6 @@ public final class HotkeyService: HotkeyServiceProtocol {
                 GetEventParameter(eventRef, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
                 let id = Int(hotKeyID.id)
                 if id == 1000 { HotkeyService.shared?.onShowPanel?() }
-                if id >= 2000 && id < 2010 { HotkeyService.shared?.onQuickPaste?(id - 1999, false) }
             }
             return noErr
         }, 1, [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))], nil, nil)
@@ -39,12 +38,6 @@ public final class HotkeyService: HotkeyServiceProtocol {
     }
     public func registerQuickPasteSlots() {
         quickRefs.removeAll()
-        for n in 1...9 {
-            var ref: EventHotKeyRef?
-            let id = EventHotKeyID(signature: OSType(UInt32(truncatingIfNeeded: 0x50415354)), id: UInt32(2000 + n - 1))
-            RegisterEventHotKey(UInt32(kVK_ANSI_1 + n - 1), UInt32(cmdKey), id, GetApplicationEventTarget(), 0, &ref)
-            quickRefs.append(ref)
-        }
     }
     public func registerStackToggle() {
         stackToggleRef = nil

@@ -32,6 +32,7 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
     public var onEnter: (() -> Void)?
     public var onSpace: (() -> Void)?
     public var onShown: (() -> Void)?
+    public var onQuickPaste: ((Int, Bool) -> Void)?
     private var isSearchActive: Bool = false
     public func setSearchActive(_ active: Bool) {
         isSearchActive = active
@@ -357,7 +358,21 @@ public final class PanelWindowController: NSObject, NSWindowDelegate, NSTextFiel
                     return nil
                 }
                 let flags = ev.modifierFlags
-                if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return ev }
+                if flags.contains(.command) {
+                    if !flags.contains(.shift) && !flags.contains(.option) && !flags.contains(.control) {
+                        if self.isFirstResponderTextInput() || self.isAnyTextInputActive() || self.isSearchActive { return ev }
+                        if keycode == UInt16(kVK_ANSI_1) { self.onQuickPaste?(1, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_2) { self.onQuickPaste?(2, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_3) { self.onQuickPaste?(3, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_4) { self.onQuickPaste?(4, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_5) { self.onQuickPaste?(5, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_6) { self.onQuickPaste?(6, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_7) { self.onQuickPaste?(7, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_8) { self.onQuickPaste?(8, false); return nil }
+                        if keycode == UInt16(kVK_ANSI_9) { self.onQuickPaste?(9, false); return nil }
+                    }
+                    return ev
+                }
                 if !self.isFirstResponderTextInput() && !self.isAnyTextInputActive() {
                     if keycode == 123 { self.onArrowLeft?(); return nil }
                     if keycode == 124 { self.onArrowRight?(); return nil }

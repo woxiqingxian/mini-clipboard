@@ -56,6 +56,16 @@ final class AppController: ObservableObject {
             self.paste.activateStack(directionAsc: true)
         }
         panel.setRoot(PanelRootView(controller: self))
+        panel.onQuickPaste = { [weak self] idx, plain in
+            guard let self = self else { return }
+            let list = self.search.search(self.query, filters: self.filters, limit: 100)
+            if idx-1 < list.count {
+                self.monitor.suppressCaptures(for: 1.0)
+                self.paste.paste(list[idx-1], plainText: plain)
+                self.store.moveToFront(list[idx-1].id)
+                self.refresh()
+            }
+        }
         panel.onQueryUpdate = { [weak self] q in self?.query = q }
         panel.onSearchOverlayVisibleChanged = { [weak self] in self?.searchPopoverVisible = $0 }
         panel.onShowSearchPopover = { [weak self] _ in
