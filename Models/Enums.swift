@@ -15,6 +15,12 @@ public enum HistoryLayoutStyle: String, Codable, CaseIterable {
     case vertical
 }
 
+public enum AppearanceMode: String, Codable, CaseIterable {
+    case light
+    case dark
+    case system
+}
+
 // 搜索过滤条件：按类型与来源应用过滤
 public struct SearchFilters: Codable, Equatable {
     public var types: [ClipType]

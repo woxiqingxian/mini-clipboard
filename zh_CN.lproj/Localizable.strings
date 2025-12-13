@@ -1,3 +1,8 @@
+"settings.appearance" = "外观";
+"appearance.system" = "跟随系统";
+"appearance.light" = "浅色";
+"appearance.dark" = "深色";
+
 "settings.title" = "设置";
 "settings.section.general" = "通用";
 "settings.retentionDays" = "保留天数";

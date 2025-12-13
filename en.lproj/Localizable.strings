@@ -1,3 +1,8 @@
+"settings.appearance" = "Appearance";
+"appearance.system" = "System";
+"appearance.light" = "Light";
+"appearance.dark" = "Dark";
+
 "settings.title" = "Settings";
 "settings.section.general" = "General";
 "settings.retentionDays" = "Retention Days";

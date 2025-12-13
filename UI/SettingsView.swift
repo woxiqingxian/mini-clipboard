@@ -52,6 +52,21 @@ import AppKit
                     .padding(.vertical, 6)
                     .padding(.horizontal, 8)
                     HStack {
+                        Text(L("settings.appearance"))
+                            .font(.system(size: 13))
+                            .frame(width: 80, alignment: .leading)
+                        Spacer()
+                        Picker("", selection: $settings.appearance) {
+                            Text(L("appearance.system")).tag(AppearanceMode.system)
+                            Text(L("appearance.light")).tag(AppearanceMode.light)
+                            Text(L("appearance.dark")).tag(AppearanceMode.dark)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 160)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    HStack {
                         Text(L("settings.appLanguage"))
                             .font(.system(size: 13))
                             .frame(width: 80, alignment: .leading)
@@ -216,6 +231,7 @@ import AppKit
             HotkeyService.shared?.registerShowPanel()
             HotkeyService.shared?.registerQuickPasteSlots()
             HotkeyService.shared?.registerStackToggle()
+            AppTheme.applyAppearance(s.appearance)
         }
         .onChange(of: panelPositionVertical) { _ in }
         .onChange(of: panelPositionHorizontal) { _ in }

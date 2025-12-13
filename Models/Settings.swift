@@ -28,13 +28,15 @@ public struct AppSettings: Codable, Equatable {
     public var syncEnabled: Bool
     public var privacy: PrivacySettings
     public var shortcuts: Shortcuts
-    public init(historyRetentionDays: Int = 30, historyMaxItems: Int = 100, ignoredApps: [String] = [], syncEnabled: Bool = false, privacy: PrivacySettings = PrivacySettings(), shortcuts: Shortcuts = Shortcuts()) {
+    public var appearance: AppearanceMode
+    public init(historyRetentionDays: Int = 30, historyMaxItems: Int = 100, ignoredApps: [String] = [], syncEnabled: Bool = false, privacy: PrivacySettings = PrivacySettings(), shortcuts: Shortcuts = Shortcuts(), appearance: AppearanceMode = .system) {
         self.historyRetentionDays = historyRetentionDays
         self.historyMaxItems = historyMaxItems
         self.ignoredApps = ignoredApps
         self.syncEnabled = syncEnabled
         self.privacy = privacy
         self.shortcuts = shortcuts
+        self.appearance = appearance
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -44,6 +46,7 @@ public struct AppSettings: Codable, Equatable {
         case syncEnabled
         case privacy
         case shortcuts
+        case appearance
     }
 
     public init(from decoder: Decoder) throws {
@@ -54,6 +57,7 @@ public struct AppSettings: Codable, Equatable {
         syncEnabled = try c.decodeIfPresent(Bool.self, forKey: .syncEnabled) ?? false
         privacy = try c.decodeIfPresent(PrivacySettings.self, forKey: .privacy) ?? PrivacySettings()
         shortcuts = try c.decodeIfPresent(Shortcuts.self, forKey: .shortcuts) ?? Shortcuts()
+        appearance = try c.decodeIfPresent(AppearanceMode.self, forKey: .appearance) ?? .system
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -64,5 +68,6 @@ public struct AppSettings: Codable, Equatable {
         try c.encode(syncEnabled, forKey: .syncEnabled)
         try c.encode(privacy, forKey: .privacy)
         try c.encode(shortcuts, forKey: .shortcuts)
+        try c.encode(appearance, forKey: .appearance)
     }
 }

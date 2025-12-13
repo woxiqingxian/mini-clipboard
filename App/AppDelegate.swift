@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusItem: NSStatusItem?
     private var preferencesWindow: NSWindow?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let settings = SettingsStore().load()
+        AppTheme.applyAppearance(settings.appearance)
         controller = AppController()
         NSApp.setActivationPolicy(.accessory)
         setApplicationIconFromPublic()
@@ -115,23 +117,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 }
 
 struct AppTheme {
+    static func applyAppearance(_ mode: AppearanceMode) {
+        let appearance: NSAppearance?
+        switch mode {
+        case .light: appearance = NSAppearance(named: .aqua)
+        case .dark: appearance = NSAppearance(named: .darkAqua)
+        case .system: appearance = nil
+        }
+        NSApp.appearance = appearance
+    }
+
+    private static func dynamic(light: String, dark: String) -> Color {
+        return Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
+                return NSColor(Color(hex: dark))
+            } else {
+                return NSColor(Color(hex: light))
+            }
+        }))
+    }
+
     // 主色调
-    static let mainPurple = Color(hex: "8C7CF0")
-    static let palePinkPurple = Color(hex: "C6B9FF")
+    static let mainPurple = dynamic(light: "8C7CF0", dark: "7C6CE0")
+    static let palePinkPurple = dynamic(light: "C6B9FF", dark: "5A4BC0")
     
     // 辅色调
-    static let softGreen = Color(hex: "A0E8AF")
-    static let softYellow = Color(hex: "FDE68A")
-    static let paleOrange = Color(hex: "FDBA74")
+    static let softGreen = dynamic(light: "A0E8AF", dark: "059669")
+    static let softYellow = dynamic(light: "FDE68A", dark: "D97706")
+    static let paleOrange = dynamic(light: "FDBA74", dark: "EA580C")
     
     // 背景色
-    static let background = Color(hex: "F9F9FB") // 浅灰白
-    static let panelBackground = Color(hex: "F5F5F7") // 面板背景
-    static let cardBackground = Color.white // 卡片背景
-    static let sidebarBackground = Color(hex: "F0F0F5") // 侧边栏背景
+    static var background: Color { dynamic(light: "F9F9FB", dark: "1E1E1E") }
+    static var panelBackground: Color { dynamic(light: "F5F5F7", dark: "252525") }
+    static var cardBackground: Color { dynamic(light: "FFFFFF", dark: "333333") }
+    static var sidebarBackground: Color { dynamic(light: "F0F0F5", dark: "2C2C2C") }
     
     // 阴影
-    static let shadowColor = Color.black.opacity(0.05)
+    static var shadowColor: Color {
+        Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
+                return NSColor.black.withAlphaComponent(0.3)
+            } else {
+                return NSColor.black.withAlphaComponent(0.05)
+            }
+        }))
+    }
     static let shadowRadius: CGFloat = 8
     static let shadowY: CGFloat = 4
     
@@ -152,16 +182,17 @@ struct AppTheme {
         let main: Color
         let secondary: Color
         let background: Color
+        let referenceColor: NSColor // 用于颜色匹配的参考色（固定为浅色模式下的主色）
     }
     
-    static let purple = Palette(main: Color(hex: "8C7CF0"), secondary: Color(hex: "C6B9FF"), background: Color(hex: "F9F9FB"))
-    static let blue = Palette(main: Color(hex: "60A5FA"), secondary: Color(hex: "93C5FD"), background: Color(hex: "EFF6FF"))
-    static let green = Palette(main: Color(hex: "34D399"), secondary: Color(hex: "6EE7B7"), background: Color(hex: "ECFDF5"))
-    static let orange = Palette(main: Color(hex: "FB923C"), secondary: Color(hex: "FDBA74"), background: Color(hex: "FFF7ED"))
-    static let pink = Palette(main: Color(hex: "F472B6"), secondary: Color(hex: "FBCFE8"), background: Color(hex: "FDF2F8"))
-    static let teal = Palette(main: Color(hex: "2DD4BF"), secondary: Color(hex: "5EEAD4"), background: Color(hex: "F0FDFA"))
-    static let yellow = Palette(main: Color(hex: "FBBF24"), secondary: Color(hex: "FDE68A"), background: Color(hex: "FFFBEB"))
-    static let red = Palette(main: Color(hex: "F87171"), secondary: Color(hex: "FCA5A5"), background: Color(hex: "FEF2F2"))
+    static let purple = Palette(main: mainPurple, secondary: palePinkPurple, background: dynamic(light: "F9F9FB", dark: "2D2D2D"), referenceColor: NSColor(Color(hex: "8C7CF0")))
+    static let blue = Palette(main: dynamic(light: "60A5FA", dark: "2563EB"), secondary: dynamic(light: "93C5FD", dark: "1E40AF"), background: dynamic(light: "EFF6FF", dark: "1E3A8A"), referenceColor: NSColor(Color(hex: "60A5FA")))
+    static let green = Palette(main: dynamic(light: "34D399", dark: "059669"), secondary: dynamic(light: "6EE7B7", dark: "065F46"), background: dynamic(light: "ECFDF5", dark: "064E3B"), referenceColor: NSColor(Color(hex: "34D399")))
+    static let orange = Palette(main: dynamic(light: "FB923C", dark: "EA580C"), secondary: dynamic(light: "FDBA74", dark: "9A3412"), background: dynamic(light: "FFF7ED", dark: "431407"), referenceColor: NSColor(Color(hex: "FB923C")))
+    static let pink = Palette(main: dynamic(light: "F472B6", dark: "DB2777"), secondary: dynamic(light: "FBCFE8", dark: "9D174D"), background: dynamic(light: "FDF2F8", dark: "500724"), referenceColor: NSColor(Color(hex: "F472B6")))
+    static let teal = Palette(main: dynamic(light: "2DD4BF", dark: "0D9488"), secondary: dynamic(light: "5EEAD4", dark: "115E59"), background: dynamic(light: "F0FDFA", dark: "134E4A"), referenceColor: NSColor(Color(hex: "2DD4BF")))
+    static let yellow = Palette(main: dynamic(light: "FBBF24", dark: "D97706"), secondary: dynamic(light: "FDE68A", dark: "92400E"), background: dynamic(light: "FFFBEB", dark: "451A03"), referenceColor: NSColor(Color(hex: "FBBF24")))
+    static let red = Palette(main: dynamic(light: "F87171", dark: "DC2626"), secondary: dynamic(light: "FCA5A5", dark: "991B1B"), background: dynamic(light: "FEF2F2", dark: "450A0A"), referenceColor: NSColor(Color(hex: "F87171")))
     
     static let allPalettes = [purple, blue, green, orange, pink, teal, yellow, red]
     
@@ -177,7 +208,7 @@ struct AppTheme {
             if let dominant = icon.dominantColor() {
                 // 寻找最接近的预设色板
                 let best = allPalettes.min(by: { p1, p2 in
-                    distance(from: dominant, to: NSColor(p1.main)) < distance(from: dominant, to: NSColor(p2.main))
+                    distance(from: dominant, to: p1.referenceColor) < distance(from: dominant, to: p2.referenceColor)
                 }) ?? purple
                 appColorCache[bundleID] = best
                 return best
@@ -194,7 +225,7 @@ struct AppTheme {
     static func closestPalette(for color: Color) -> Palette {
         let nsColor = NSColor(color)
         return allPalettes.min(by: { p1, p2 in
-            distance(from: nsColor, to: NSColor(p1.main)) < distance(from: nsColor, to: NSColor(p2.main))
+            distance(from: nsColor, to: p1.referenceColor) < distance(from: nsColor, to: p2.referenceColor)
         }) ?? purple
     }
     
